@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCourseStore } from '../state/courseStore';
 import { MindMapNode, Position } from '../types';
 import MindMapCanvas from '../components/MindMapCanvas';
@@ -45,10 +46,7 @@ export default function MindMapScreen() {
   // Debug function to clear all data
   const clearAllData = async () => {
     try {
-      const AsyncStorage = await import('@react-native-async-storage/async-storage').then(m => m.default);
       await AsyncStorage.removeItem('course-storage');
-      // Force reload the app state
-      window.location?.reload?.();
     } catch (error) {
       console.log('Error clearing data:', error);
     }

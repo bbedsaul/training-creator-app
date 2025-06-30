@@ -1,5 +1,6 @@
 import React from 'react';
 import { View } from 'react-native';
+import Svg, { Path, Defs, Marker } from 'react-native-svg';
 import { Connection } from '../types';
 
 interface ConnectionLinesProps {
@@ -13,27 +14,27 @@ const ConnectionLines: React.FC<ConnectionLinesProps> = ({
   canvasWidth,
   canvasHeight,
 }) => {
-  const createConnectionLine = (connection: Connection) => {
+  const createCurvedPath = (connection: Connection) => {
     const { fromPosition, toPosition } = connection;
     
-    // Calculate line properties
+    // Simple straight line for debugging
+    return `M ${fromPosition.x} ${fromPosition.y} L ${toPosition.x} ${toPosition.y}`;
+    
+    // Calculate control points for a smooth curve
     const dx = toPosition.x - fromPosition.x;
     const dy = toPosition.y - fromPosition.y;
-    const length = Math.sqrt(dx * dx + dy * dy);
-    const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+    const distance = Math.sqrt(dx * dx + dy * dy);
     
-    return {
-      position: 'absolute' as const,
-      left: fromPosition.x,
-      top: fromPosition.y,
-      width: length,
-      height: 3,
-      backgroundColor: '#3B82F6',
-      transformOrigin: '0 50%',
-      transform: [{ rotate: `${angle}deg` }],
-      opacity: 0.8,
-      zIndex: 1,
-    };
+    // Curve intensity based on distance
+    const curvature = Math.min(distance * 0.3, 100);
+    
+    // Control points for bezier curve
+    const cp1x = fromPosition.x + (dx > 0 ? curvature : -curvature);
+    const cp1y = fromPosition.y;
+    const cp2x = toPosition.x - (dx > 0 ? curvature : -curvature);
+    const cp2y = toPosition.y;
+    
+    return `M ${fromPosition.x} ${fromPosition.y} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${toPosition.x} ${toPosition.y}`;
   };
 
   if (connections.length === 0) {
@@ -52,13 +53,45 @@ const ConnectionLines: React.FC<ConnectionLinesProps> = ({
         pointerEvents: 'none'
       }}
     >
-      {/* Connection Lines */}
-      {connections.map((connection) => (
-        <View
-          key={connection.id}
-          style={createConnectionLine(connection)}
+      <Svg width={canvasWidth} height={canvasHeight}>
+        <Defs>
+          <Marker
+            id="arrowhead"
+            markerWidth="10"
+            markerHeight="7"
+            refX="9"
+            refY="3.5"
+            orient="auto"
+          >
+            <Path
+              d="M0,0 L0,7 L10,3.5 z"
+              fill="#3B82F6"
+            />
+          </Marker>
+        </Defs>
+        
+        {/* Test line to verify SVG is working */}
+        <Path
+          d="M 50 50 L 200 150"
+          stroke="#FF0000"
+          strokeWidth="4"
+          fill="none"
+          opacity={1}
         />
-      ))}
+        
+        {connections.map((connection) => (
+          <Path
+            key={connection.id}
+            d={createCurvedPath(connection)}
+            stroke="#3B82F6"
+            strokeWidth="3"
+            fill="none"
+            strokeDasharray="none"
+            markerEnd="url(#arrowhead)"
+            opacity={0.8}
+          />
+        ))}
+      </Svg>
     </View>
   );
 };
