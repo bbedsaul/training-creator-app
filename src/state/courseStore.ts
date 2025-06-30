@@ -470,62 +470,71 @@ export const useCourseStore = create<CourseStore>()(
           // Ensure course has position and size
           if (!course.position || !course.size) return;
           
-          course.modules.forEach(module => {
-            // Ensure module has position and size
-            if (!module.position || !module.size) return;
-            
-            connections.push({
-              id: `${course.id}-${module.id}`,
-              fromNodeId: course.id,
-              toNodeId: module.id,
-              fromPosition: {
-                x: course.position.x + course.size.width / 2,
-                y: course.position.y + course.size.height / 2,
-              },
-              toPosition: {
-                x: module.position.x + module.size.width / 2,
-                y: module.position.y + module.size.height / 2,
-              },
-            });
-            
-            module.stickies.forEach(sticky => {
-              // Ensure sticky has position and size
-              if (!sticky.position || !sticky.size) return;
+          // Only show connections to modules if course is not collapsed
+          if (!course.isCollapsed) {
+            course.modules.forEach(module => {
+              // Ensure module has position and size
+              if (!module.position || !module.size) return;
               
               connections.push({
-                id: `${module.id}-${sticky.id}`,
-                fromNodeId: module.id,
-                toNodeId: sticky.id,
+                id: `${course.id}-${module.id}`,
+                fromNodeId: course.id,
+                toNodeId: module.id,
                 fromPosition: {
+                  x: course.position.x + course.size.width / 2,
+                  y: course.position.y + course.size.height / 2,
+                },
+                toPosition: {
                   x: module.position.x + module.size.width / 2,
                   y: module.position.y + module.size.height / 2,
                 },
-                toPosition: {
-                  x: sticky.position.x + sticky.size.width / 2,
-                  y: sticky.position.y + sticky.size.height / 2,
-                },
               });
               
-              sticky.tasks.forEach(task => {
-                // Ensure task has position and size
-                if (!task.position || !task.size) return;
-                
-                connections.push({
-                  id: `${sticky.id}-${task.id}`,
-                  fromNodeId: sticky.id,
-                  toNodeId: task.id,
-                  fromPosition: {
-                    x: sticky.position.x + sticky.size.width / 2,
-                    y: sticky.position.y + sticky.size.height / 2,
-                  },
-                  toPosition: {
-                    x: task.position.x + task.size.width / 2,
-                    y: task.position.y + task.size.height / 2,
-                  },
+              // Only show connections to stickies if module is not collapsed
+              if (!module.isCollapsed) {
+                module.stickies.forEach(sticky => {
+                  // Ensure sticky has position and size
+                  if (!sticky.position || !sticky.size) return;
+                  
+                  connections.push({
+                    id: `${module.id}-${sticky.id}`,
+                    fromNodeId: module.id,
+                    toNodeId: sticky.id,
+                    fromPosition: {
+                      x: module.position.x + module.size.width / 2,
+                      y: module.position.y + module.size.height / 2,
+                    },
+                    toPosition: {
+                      x: sticky.position.x + sticky.size.width / 2,
+                      y: sticky.position.y + sticky.size.height / 2,
+                    },
+                  });
+                  
+                  // Only show connections to tasks if sticky is not collapsed
+                  if (!sticky.isCollapsed) {
+                    sticky.tasks.forEach(task => {
+                      // Ensure task has position and size
+                      if (!task.position || !task.size) return;
+                      
+                      connections.push({
+                        id: `${sticky.id}-${task.id}`,
+                        fromNodeId: sticky.id,
+                        toNodeId: task.id,
+                        fromPosition: {
+                          x: sticky.position.x + sticky.size.width / 2,
+                          y: sticky.position.y + sticky.size.height / 2,
+                        },
+                        toPosition: {
+                          x: task.position.x + task.size.width / 2,
+                          y: task.position.y + task.size.height / 2,
+                        },
+                      });
+                    });
+                  }
                 });
-              });
+              }
             });
-          });
+          }
         });
         
         return connections;
