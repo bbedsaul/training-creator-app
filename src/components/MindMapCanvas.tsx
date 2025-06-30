@@ -286,7 +286,7 @@ const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
             <Animated.View style={[animatedCanvasStyle, { flex: 1 }]}>
               {/* Connection Lines */}
               <ConnectionLines
-                connections={allConnections}
+                connections={connections}
                 canvasWidth={canvasSize.width}
                 canvasHeight={canvasSize.height}
               />

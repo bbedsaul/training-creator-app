@@ -13,11 +13,12 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'CourseList'
 export default function CourseListScreen() {
   const navigation = useNavigation<NavigationProp>();
   const insets = useSafeAreaInsets();
-  const { courses, deleteCourse, addCourse } = useCourseStore();
+  const { courses, deleteCourse, addCourse, addModule, addSticky } = useCourseStore();
 
   // Add sample courses if none exist
   React.useEffect(() => {
     if (courses.length === 0) {
+      // Create first course with position
       addCourse({
         title: 'React Native Fundamentals',
         description: 'Learn the basics of React Native development from scratch',
@@ -25,7 +26,7 @@ export default function CourseListScreen() {
         difficulty: 'Beginner',
         estimatedDuration: '6 weeks',
         modules: []
-      });
+      }, { x: 200, y: 150 });
       
       addCourse({
         title: 'Advanced JavaScript Patterns',
@@ -34,7 +35,7 @@ export default function CourseListScreen() {
         difficulty: 'Advanced',
         estimatedDuration: '8 weeks',
         modules: []
-      });
+      }, { x: 200, y: 150 });
 
       addCourse({
         title: 'UI/UX Design Principles',
@@ -43,7 +44,50 @@ export default function CourseListScreen() {
         difficulty: 'Intermediate',
         estimatedDuration: '4 weeks',
         modules: []
-      });
+      }, { x: 200, y: 150 });
+
+      // Add sample content to the first course after a delay
+      setTimeout(() => {
+        const currentCourses = useCourseStore.getState().courses;
+        if (currentCourses.length > 0) {
+          const firstCourse = currentCourses[0];
+          
+          // Add modules
+          addModule(firstCourse.id, {
+            title: 'Getting Started',
+            description: 'Setup and basic concepts',
+            stickies: []
+          }, { x: 400, y: 100 });
+
+          addModule(firstCourse.id, {
+            title: 'Components & Navigation',
+            description: 'Building UI components',
+            stickies: []
+          }, { x: 350, y: 250 });
+
+          // Add stickies after another delay
+          setTimeout(() => {
+            const updatedCourses = useCourseStore.getState().courses;
+            const updatedCourse = updatedCourses.find(c => c.id === firstCourse.id);
+            
+            if (updatedCourse && updatedCourse.modules.length > 0) {
+              const firstModule = updatedCourse.modules[0];
+              
+              addSticky(firstCourse.id, firstModule.id, {
+                title: 'Environment Setup',
+                description: 'Install development tools',
+                tasks: []
+              }, { x: 600, y: 80 });
+
+              addSticky(firstCourse.id, firstModule.id, {
+                title: 'Hello World App',
+                description: 'Create your first app',
+                tasks: []
+              }, { x: 550, y: 180 });
+            }
+          }, 200);
+        }
+      }, 100);
     }
   }, []);
 
