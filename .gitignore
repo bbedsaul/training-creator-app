@@ -36,3 +36,18 @@ yarn-error.*
 # iOS & Android
 ios/
 android/
+
+# Environment variables
+.env
+.env.local
+.env.production
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Cache
+.cache/
