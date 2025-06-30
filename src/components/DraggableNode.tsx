@@ -3,11 +3,10 @@ import { View, Text, Pressable } from 'react-native';
 import Animated, { 
   useSharedValue, 
   useAnimatedStyle, 
-  useAnimatedGestureHandler,
   withSpring,
   runOnJS,
 } from 'react-native-reanimated';
-import { PanGestureHandler, PanGestureHandlerGestureEvent } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import { MindMapNode } from '../types';
 
@@ -35,20 +34,19 @@ const DraggableNode: React.FC<DraggableNodeProps> = ({
     translateY.value = node.position.y;
   }, [node.position.x, node.position.y]);
 
-  const gestureHandler = useAnimatedGestureHandler<PanGestureHandlerGestureEvent>({
-    onStart: () => {
+  const panGesture = Gesture.Pan()
+    .onStart(() => {
       isDragging.value = true;
-    },
-    onActive: (event) => {
+    })
+    .onUpdate((event) => {
       translateX.value = node.position.x + event.translationX / scale;
       translateY.value = node.position.y + event.translationY / scale;
-    },
-    onEnd: () => {
+    })
+    .onEnd(() => {
       isDragging.value = false;
       // Update position in store
       runOnJS(onPositionChange)(node.id, translateX.value, translateY.value);
-    },
-  });
+    });
 
   const animatedStyle = useAnimatedStyle(() => {
     return {
@@ -111,7 +109,7 @@ const DraggableNode: React.FC<DraggableNodeProps> = ({
   };
 
   return (
-    <PanGestureHandler onGestureEvent={gestureHandler}>
+    <GestureDetector gesture={panGesture}>
       <Animated.View style={[animatedStyle, { position: 'absolute' }]}>
         <Pressable
           onPress={() => onPress?.(node)}
@@ -177,7 +175,7 @@ const DraggableNode: React.FC<DraggableNodeProps> = ({
           </View>
         </Pressable>
       </Animated.View>
-    </PanGestureHandler>
+    </GestureDetector>
   );
 };
 

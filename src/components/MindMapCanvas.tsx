@@ -1,13 +1,12 @@
 import React, { useState } from 'react';
-import { View, Dimensions, Pressable, Alert } from 'react-native';
+import { View, Dimensions, Pressable } from 'react-native';
 import Animated, { 
   useSharedValue, 
   useAnimatedStyle, 
-  useAnimatedGestureHandler,
   withSpring,
   runOnJS,
 } from 'react-native-reanimated';
-import { PanGestureHandler, PinchGestureHandler, State } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import { useCourseStore } from '../state/courseStore';
 import { MindMapNode } from '../types';
@@ -54,28 +53,26 @@ const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
     scale.value = canvasScale;
   }, [canvasOffset, canvasScale]);
 
-  // Pan gesture handler for canvas
-  const panGestureHandler = useAnimatedGestureHandler({
-    onStart: () => {},
-    onActive: (event) => {
+  // Pan gesture for canvas
+  const panGesture = Gesture.Pan()
+    .onUpdate((event) => {
       translateX.value = canvasOffset.x + event.translationX;
       translateY.value = canvasOffset.y + event.translationY;
-    },
-    onEnd: () => {
+    })
+    .onEnd(() => {
       runOnJS(updateCanvasTransform)(
         { x: translateX.value, y: translateY.value },
         scale.value
       );
-    },
-  });
+    });
 
-  // Pinch gesture handler for zoom
-  const pinchGestureHandler = useAnimatedGestureHandler({
-    onStart: (event) => {
+  // Pinch gesture for zoom
+  const pinchGesture = Gesture.Pinch()
+    .onStart((event) => {
       focalX.value = event.focalX;
       focalY.value = event.focalY;
-    },
-    onActive: (event) => {
+    })
+    .onUpdate((event) => {
       const newScale = Math.max(0.5, Math.min(3, canvasScale * event.scale));
       scale.value = newScale;
       
@@ -83,14 +80,15 @@ const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
       const scaleDiff = newScale - canvasScale;
       translateX.value = canvasOffset.x - (focalX.value * scaleDiff);
       translateY.value = canvasOffset.y - (focalY.value * scaleDiff);
-    },
-    onEnd: () => {
+    })
+    .onEnd(() => {
       runOnJS(updateCanvasTransform)(
         { x: translateX.value, y: translateY.value },
         scale.value
       );
-    },
-  });
+    });
+
+  const composedGesture = Gesture.Simultaneous(panGesture, pinchGesture);
 
   const animatedCanvasStyle = useAnimatedStyle(() => {
     return {
@@ -197,17 +195,8 @@ const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
   };
 
   const handleCanvasLongPress = () => {
-    Alert.alert(
-      'Create New Node',
-      'What would you like to create?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Course', onPress: () => onCreateNode?.('course', { x: 200, y: 200 }) },
-        { text: 'Module', onPress: () => onCreateNode?.('module', { x: 200, y: 200 }) },
-        { text: 'Sticky', onPress: () => onCreateNode?.('sticky', { x: 200, y: 200 }) },
-        { text: 'Task', onPress: () => onCreateNode?.('task', { x: 200, y: 200 }) },
-      ]
-    );
+    // Simply create a course by default for now
+    onCreateNode?.('course', { x: 200, y: 200 });
   };
 
   const nodes = getAllNodes();
@@ -240,40 +229,36 @@ const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
       </View>
 
       {/* Main Canvas */}
-      <PinchGestureHandler onGestureEvent={pinchGestureHandler}>
+      <GestureDetector gesture={composedGesture}>
         <Animated.View className="flex-1">
-          <PanGestureHandler onGestureEvent={panGestureHandler}>
-            <Animated.View className="flex-1">
-              <Pressable
-                onLongPress={handleCanvasLongPress}
-                className="flex-1"
-                style={{ width: canvasSize.width, height: canvasSize.height }}
-              >
-                <Animated.View style={[animatedCanvasStyle, { flex: 1 }]}>
-                  {/* Connection Lines */}
-                  <ConnectionLines
-                    connections={connections}
-                    canvasWidth={canvasSize.width}
-                    canvasHeight={canvasSize.height}
-                  />
+          <Pressable
+            onLongPress={handleCanvasLongPress}
+            className="flex-1"
+            style={{ width: canvasSize.width, height: canvasSize.height }}
+          >
+            <Animated.View style={[animatedCanvasStyle, { flex: 1 }]}>
+              {/* Connection Lines */}
+              <ConnectionLines
+                connections={connections}
+                canvasWidth={canvasSize.width}
+                canvasHeight={canvasSize.height}
+              />
 
-                  {/* Draggable Nodes */}
-                  {nodes.map((node) => (
-                    <DraggableNode
-                      key={node.id}
-                      node={node}
-                      onPositionChange={handleNodePositionChange}
-                      onPress={onNodePress}
-                      onToggleCollapse={handleToggleCollapse}
-                      scale={scale.value}
-                    />
-                  ))}
-                </Animated.View>
-              </Pressable>
+              {/* Draggable Nodes */}
+              {nodes.map((node) => (
+                <DraggableNode
+                  key={node.id}
+                  node={node}
+                  onPositionChange={handleNodePositionChange}
+                  onPress={onNodePress}
+                  onToggleCollapse={handleToggleCollapse}
+                  scale={scale.value}
+                />
+              ))}
             </Animated.View>
-          </PanGestureHandler>
+          </Pressable>
         </Animated.View>
-      </PinchGestureHandler>
+      </GestureDetector>
     </View>
   );
 };
