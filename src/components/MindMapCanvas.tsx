@@ -252,7 +252,7 @@ const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
                   onPositionChange={handleNodePositionChange}
                   onPress={onNodePress}
                   onToggleCollapse={handleToggleCollapse}
-                  scale={scale.value}
+                  scale={canvasScale}
                 />
               ))}
             </Animated.View>

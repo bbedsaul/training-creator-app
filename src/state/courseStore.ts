@@ -391,6 +391,9 @@ export const useCourseStore = create<CourseStore>()(
         const nodes: MindMapNode[] = [];
         
         state.courses.forEach(course => {
+          // Ensure course has position and size
+          if (!course.position || !course.size) return;
+          
           nodes.push({
             id: course.id,
             type: 'course',
@@ -403,6 +406,9 @@ export const useCourseStore = create<CourseStore>()(
           
           if (!course.isCollapsed) {
             course.modules.forEach(module => {
+              // Ensure module has position and size
+              if (!module.position || !module.size) return;
+              
               nodes.push({
                 id: module.id,
                 type: 'module',
@@ -416,6 +422,9 @@ export const useCourseStore = create<CourseStore>()(
               
               if (!module.isCollapsed) {
                 module.stickies.forEach(sticky => {
+                  // Ensure sticky has position and size
+                  if (!sticky.position || !sticky.size) return;
+                  
                   nodes.push({
                     id: sticky.id,
                     type: 'sticky',
@@ -429,6 +438,9 @@ export const useCourseStore = create<CourseStore>()(
                   
                   if (!sticky.isCollapsed) {
                     sticky.tasks.forEach(task => {
+                      // Ensure task has position and size
+                      if (!task.position || !task.size) return;
+                      
                       nodes.push({
                         id: task.id,
                         type: 'task',
@@ -455,7 +467,13 @@ export const useCourseStore = create<CourseStore>()(
         const connections: Connection[] = [];
         
         state.courses.forEach(course => {
+          // Ensure course has position and size
+          if (!course.position || !course.size) return;
+          
           course.modules.forEach(module => {
+            // Ensure module has position and size
+            if (!module.position || !module.size) return;
+            
             connections.push({
               id: `${course.id}-${module.id}`,
               fromNodeId: course.id,
@@ -471,6 +489,9 @@ export const useCourseStore = create<CourseStore>()(
             });
             
             module.stickies.forEach(sticky => {
+              // Ensure sticky has position and size
+              if (!sticky.position || !sticky.size) return;
+              
               connections.push({
                 id: `${module.id}-${sticky.id}`,
                 fromNodeId: module.id,
@@ -486,6 +507,9 @@ export const useCourseStore = create<CourseStore>()(
               });
               
               sticky.tasks.forEach(task => {
+                // Ensure task has position and size
+                if (!task.position || !task.size) return;
+                
                 connections.push({
                   id: `${sticky.id}-${task.id}`,
                   fromNodeId: sticky.id,

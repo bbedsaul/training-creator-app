@@ -20,6 +20,18 @@ export default function MindMapScreen() {
   const insets = useSafeAreaInsets();
   const { courses, addCourse, addModule, addSticky, addTask } = useCourseStore();
   
+  // Debug function to clear all data
+  const clearAllData = async () => {
+    try {
+      const AsyncStorage = await import('@react-native-async-storage/async-storage').then(m => m.default);
+      await AsyncStorage.removeItem('course-storage');
+      // Force reload the app state
+      window.location?.reload?.();
+    } catch (error) {
+      console.log('Error clearing data:', error);
+    }
+  };
+  
   // Add sample data on first load
   React.useEffect(() => {
     if (courses.length === 0) {
@@ -31,60 +43,17 @@ export default function MindMapScreen() {
         difficulty: 'Intermediate',
         estimatedDuration: '8 weeks',
         modules: []
-      });
+      }, { x: 100, y: 100 });
       
-      // We'll add modules after the course is created
-      setTimeout(() => {
-        const newCourses = useCourseStore.getState().courses;
-        if (newCourses.length > 0) {
-          const courseId = newCourses[0].id;
-          
-          // Add sample modules
-          addModule(courseId, {
-            title: 'Getting Started',
-            description: 'Setting up your development environment',
-            stickies: []
-          });
-          
-          addModule(courseId, {
-            title: 'Navigation',
-            description: 'Learn React Navigation',
-            stickies: []
-          });
-          
-          // Add stickies and tasks
-          setTimeout(() => {
-            const updatedCourses = useCourseStore.getState().courses;
-            const course = updatedCourses.find(c => c.id === courseId);
-            if (course && course.modules.length > 0) {
-              const moduleId = course.modules[0].id;
-              
-              addSticky(courseId, moduleId, {
-                title: 'Environment Setup',
-                description: 'Install tools and dependencies',
-                tasks: []
-              });
-              
-              // Add a task
-              setTimeout(() => {
-                const latestCourses = useCourseStore.getState().courses;
-                const latestCourse = latestCourses.find(c => c.id === courseId);
-                const latestModule = latestCourse?.modules.find(m => m.id === moduleId);
-                if (latestModule && latestModule.stickies.length > 0) {
-                  const stickyId = latestModule.stickies[0].id;
-                  
-                  addTask(courseId, moduleId, stickyId, {
-                    title: 'Install Expo CLI',
-                    description: 'Install the Expo CLI globally',
-                    isCompleted: false,
-                    tasks: []
-                  });
-                }
-              }, 100);
-            }
-          }, 100);
-        }
-      }, 100);
+      // Add a second course for demonstration
+      addCourse({
+        title: 'JavaScript Fundamentals',
+        description: 'Learn the basics of JavaScript programming',
+        category: 'Programming',
+        difficulty: 'Beginner',
+        estimatedDuration: '4 weeks',
+        modules: []
+      }, { x: 400, y: 100 });
     }
   }, []);
   
@@ -346,13 +315,23 @@ export default function MindMapScreen() {
             </Text>
           </View>
           
-          <Pressable
-            onPress={() => navigation.navigate('CourseList')}
-            className="bg-gray-100 px-4 py-2 rounded-lg flex-row items-center"
-          >
-            <Ionicons name="list-outline" size={16} color="#374151" />
-            <Text className="text-gray-700 font-medium ml-2">List View</Text>
-          </Pressable>
+          <View className="flex-row space-x-2">
+            <Pressable
+              onPress={clearAllData}
+              className="bg-red-100 px-3 py-2 rounded-lg flex-row items-center"
+            >
+              <Ionicons name="refresh-outline" size={16} color="#DC2626" />
+              <Text className="text-red-600 font-medium ml-1 text-sm">Reset</Text>
+            </Pressable>
+            
+            <Pressable
+              onPress={() => navigation.navigate('CourseList')}
+              className="bg-gray-100 px-4 py-2 rounded-lg flex-row items-center"
+            >
+              <Ionicons name="list-outline" size={16} color="#374151" />
+              <Text className="text-gray-700 font-medium ml-2">List View</Text>
+            </Pressable>
+          </View>
         </View>
       </View>
 
