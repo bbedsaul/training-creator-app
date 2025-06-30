@@ -201,6 +201,26 @@ const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
 
   const nodes = getAllNodes();
   const connections = getConnections();
+  
+  // Add test connections for debugging
+  const testConnections = [
+    {
+      id: 'test-1',
+      fromNodeId: 'test1',
+      toNodeId: 'test2',
+      fromPosition: { x: 100, y: 100 },
+      toPosition: { x: 300, y: 200 }
+    },
+    {
+      id: 'test-2',
+      fromNodeId: 'test2',
+      toNodeId: 'test3',
+      fromPosition: { x: 300, y: 200 },
+      toPosition: { x: 500, y: 150 }
+    }
+  ];
+  
+  const allConnections = [...connections, ...testConnections];
 
   const resetCanvasView = () => {
     translateX.value = withSpring(0);
@@ -239,7 +259,7 @@ const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
             <Animated.View style={[animatedCanvasStyle, { flex: 1 }]}>
               {/* Connection Lines */}
               <ConnectionLines
-                connections={connections}
+                connections={allConnections}
                 canvasWidth={canvasSize.width}
                 canvasHeight={canvasSize.height}
               />
