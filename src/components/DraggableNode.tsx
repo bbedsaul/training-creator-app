@@ -55,8 +55,8 @@ const DraggableNode: React.FC<DraggableNodeProps> = ({
         { translateY: translateY.value },
         { scale: withSpring(isDragging.value ? 1.05 : 1) },
       ],
-      zIndex: isDragging.value ? 1000 : 1,
-      elevation: isDragging.value ? 8 : 2,
+      zIndex: isDragging.value ? 1000 : 10,
+      elevation: isDragging.value ? 8 : 5,
     };
   });
 

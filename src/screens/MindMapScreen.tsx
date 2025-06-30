@@ -18,7 +18,7 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'CourseList'
 export default function MindMapScreen() {
   const navigation = useNavigation<NavigationProp>();
   const insets = useSafeAreaInsets();
-  const { courses, addCourse, addModule, addSticky, addTask } = useCourseStore();
+  const { courses, addCourse, addModule, addSticky, addTask, getAllNodes, getConnections } = useCourseStore();
   
   // Debug function to clear all data
   const clearAllData = async () => {
@@ -54,6 +54,57 @@ export default function MindMapScreen() {
         estimatedDuration: '4 weeks',
         modules: []
       }, { x: 400, y: 100 });
+      
+      // Add modules and content after courses are created
+      setTimeout(() => {
+        const state = useCourseStore.getState();
+        if (state.courses.length >= 2) {
+          const rnCourse = state.courses[0];
+          const jsCourse = state.courses[1];
+          
+          // Add modules to React Native course
+          addModule(rnCourse.id, {
+            title: 'Getting Started',
+            description: 'Setup and basics',
+            stickies: []
+          }, { x: 300, y: 200 });
+          
+          addModule(rnCourse.id, {
+            title: 'Navigation',
+            description: 'React Navigation',
+            stickies: []
+          }, { x: 150, y: 250 });
+          
+          // Add modules to JavaScript course
+          addModule(jsCourse.id, {
+            title: 'Variables & Types',
+            description: 'Basic data types',
+            stickies: []
+          }, { x: 600, y: 200 });
+          
+          // Add stickies after a short delay
+          setTimeout(() => {
+            const updatedState = useCourseStore.getState();
+            const updatedRnCourse = updatedState.courses.find(c => c.id === rnCourse.id);
+            
+            if (updatedRnCourse && updatedRnCourse.modules.length > 0) {
+              const gettingStartedModule = updatedRnCourse.modules[0];
+              
+              addSticky(rnCourse.id, gettingStartedModule.id, {
+                title: 'Environment Setup',
+                description: 'Install tools',
+                tasks: []
+              }, { x: 450, y: 300 });
+              
+              addSticky(rnCourse.id, gettingStartedModule.id, {
+                title: 'First App',
+                description: 'Hello World',
+                tasks: []
+              }, { x: 350, y: 350 });
+            }
+          }, 200);
+        }
+      }, 100);
     }
   }, []);
   
@@ -312,6 +363,9 @@ export default function MindMapScreen() {
             </Text>
             <Text className="text-gray-600 text-sm mt-1">
               Drag nodes to organize • Long press to create • Pinch to zoom
+            </Text>
+            <Text className="text-gray-500 text-xs mt-1">
+              {getAllNodes().length} nodes • {getConnections().length} connections
             </Text>
           </View>
           

@@ -17,6 +17,9 @@ const ConnectionLines: React.FC<ConnectionLinesProps> = ({
   const createCurvedPath = (connection: Connection) => {
     const { fromPosition, toPosition } = connection;
     
+    // Simple straight line for debugging
+    return `M ${fromPosition.x} ${fromPosition.y} L ${toPosition.x} ${toPosition.y}`;
+    
     // Calculate control points for a smooth curve
     const dx = toPosition.x - fromPosition.x;
     const dy = toPosition.y - fromPosition.y;
@@ -39,7 +42,17 @@ const ConnectionLines: React.FC<ConnectionLinesProps> = ({
   }
 
   return (
-    <View style={{ position: 'absolute', top: 0, left: 0 }}>
+    <View 
+      style={{ 
+        position: 'absolute', 
+        top: 0, 
+        left: 0, 
+        width: canvasWidth, 
+        height: canvasHeight,
+        zIndex: 0,
+        pointerEvents: 'none'
+      }}
+    >
       <Svg width={canvasWidth} height={canvasHeight}>
         <Defs>
           <Marker
@@ -52,21 +65,30 @@ const ConnectionLines: React.FC<ConnectionLinesProps> = ({
           >
             <Path
               d="M0,0 L0,7 L10,3.5 z"
-              fill="#94A3B8"
+              fill="#3B82F6"
             />
           </Marker>
         </Defs>
+        
+        {/* Test line to verify SVG is working */}
+        <Path
+          d="M 50 50 L 200 150"
+          stroke="#FF0000"
+          strokeWidth="4"
+          fill="none"
+          opacity={1}
+        />
         
         {connections.map((connection) => (
           <Path
             key={connection.id}
             d={createCurvedPath(connection)}
-            stroke="#94A3B8"
-            strokeWidth="2"
+            stroke="#3B82F6"
+            strokeWidth="3"
             fill="none"
-            strokeDasharray="5,5"
+            strokeDasharray="none"
             markerEnd="url(#arrowhead)"
-            opacity={0.6}
+            opacity={0.8}
           />
         ))}
       </Svg>
