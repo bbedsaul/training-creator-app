@@ -19,8 +19,11 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'MindMap'>;
 export default function MindMapScreen({ route }: { route: { params: { course: Course } } }) {
   const navigation = useNavigation<NavigationProp>();
   const insets = useSafeAreaInsets();
-  const { course } = route.params;
-  const { updateCourse, addModule, addSticky, addTask, getAllNodesForCourse, getConnectionsForCourse } = useCourseStore();
+  const { course: routeCourse } = route.params;
+  const { courses, updateCourse, addModule, addSticky, addTask, getAllNodesForCourse, getConnectionsForCourse } = useCourseStore();
+  
+  // Get the current course from the store to ensure we have latest data
+  const course = courses.find(c => c.id === routeCourse.id) || routeCourse;
   
   // Determine what type of object will be created next
   const getNextCreationType = () => {
@@ -351,6 +354,9 @@ export default function MindMapScreen({ route }: { route: { params: { course: Co
             </Text>
             <Text className="text-gray-500 text-xs mt-1">
               {getAllNodesForCourse(course.id).length} nodes • {getConnectionsForCourse(course.id).length} connections • Next: {getNextCreationType()}
+            </Text>
+            <Text className="text-gray-400 text-xs mt-1">
+              Course: {course.modules.length} modules • Pos: {course.position ? `${Math.round(course.position.x)},${Math.round(course.position.y)}` : 'none'}
             </Text>
           </View>
           

@@ -68,67 +68,73 @@ const ConnectionLines: React.FC<ConnectionLinesProps> = ({
           padding: 8,
           borderRadius: 4,
           zIndex: 1000,
-          maxWidth: 200
+          maxWidth: 300
         }}
       >
         <Text style={{ color: 'white', fontSize: 12 }}>
           {connections.length} connections
         </Text>
+        <Text style={{ color: 'white', fontSize: 10 }}>
+          Canvas: {canvasWidth}x{canvasHeight}
+        </Text>
         {connections.length > 0 && (
-          <Text style={{ color: 'white', fontSize: 10 }}>
-            First: {connections[0].fromNodeId} → {connections[0].toNodeId}
-          </Text>
+          <>
+            <Text style={{ color: 'white', fontSize: 10 }}>
+              First: {connections[0].fromNodeId?.slice(0,8)} → {connections[0].toNodeId?.slice(0,8)}
+            </Text>
+            <Text style={{ color: 'white', fontSize: 9 }}>
+              From: {Math.round(connections[0].fromPosition.x)},{Math.round(connections[0].fromPosition.y)}
+            </Text>
+            <Text style={{ color: 'white', fontSize: 9 }}>
+              To: {Math.round(connections[0].toPosition.x)},{Math.round(connections[0].toPosition.y)}
+            </Text>
+          </>
         )}
       </View>
 
-      <Svg 
-        width={canvasWidth} 
-        height={canvasHeight}
-        style={{ 
-          backgroundColor: 'rgba(255,255,0,0.1)', // Slightly yellow tint to see SVG bounds
-          position: 'absolute',
-          top: 0,
-          left: 0
-        }}
-      >
-        <Defs>
-          <Marker
-            id="arrowhead"
-            markerWidth="10"
-            markerHeight="7"
-            refX="9"
-            refY="3.5"
-            orient="auto"
-          >
-            <Path
-              d="M0,0 L0,7 L10,3.5 z"
-              fill="#3B82F6"
-            />
-          </Marker>
-        </Defs>
+      {/* Test with simple View components instead of SVG */}
+      {connections.map((connection, index) => {
+        const { fromPosition, toPosition } = connection;
         
-        {/* Test line to verify SVG is working */}
-        <Path
-          d="M 50 50 L 200 150"
-          stroke="#FF0000"
-          strokeWidth="4"
-          fill="none"
-          opacity={1}
-        />
+        if (!fromPosition || !toPosition) return null;
         
-        {connections.map((connection, index) => (
-          <Path
+        const dx = toPosition.x - fromPosition.x;
+        const dy = toPosition.y - fromPosition.y;
+        const length = Math.sqrt(dx * dx + dy * dy);
+        const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+        
+        return (
+          <View
             key={connection.id}
-            d={createCurvedPath(connection)}
-            stroke="#00FF00"
-            strokeWidth="8"
-            fill="none"
-            strokeDasharray="none"
-            markerEnd="url(#arrowhead)"
-            opacity={1}
+            style={{
+              position: 'absolute',
+              left: fromPosition.x,
+              top: fromPosition.y,
+              width: length,
+              height: 4,
+              backgroundColor: '#00FF00',
+              transformOrigin: '0 50%',
+              transform: [{ rotate: `${angle}deg` }],
+              zIndex: 1,
+            }}
           />
-        ))}
-      </Svg>
+        );
+      })}
+      
+      {/* Test with a simple static line */}
+      <View
+        style={{
+          position: 'absolute',
+          left: 50,
+          top: 50,
+          width: 150,
+          height: 4,
+          backgroundColor: '#FF0000',
+          transformOrigin: '0 50%',
+          transform: [{ rotate: '45deg' }],
+          zIndex: 2,
+        }}
+      />
     </View>
   );
 };

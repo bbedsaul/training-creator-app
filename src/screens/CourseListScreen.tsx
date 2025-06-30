@@ -52,18 +52,18 @@ export default function CourseListScreen() {
         if (currentCourses.length > 0) {
           const firstCourse = currentCourses[0];
           
-          // Add modules
+          // Add modules with explicit positions
           addModule(firstCourse.id, {
             title: 'Getting Started',
             description: 'Setup and basic concepts',
             stickies: []
-          }, { x: 400, y: 100 });
+          }, { x: 450, y: 100 });
 
           addModule(firstCourse.id, {
             title: 'Components & Navigation',
             description: 'Building UI components',
             stickies: []
-          }, { x: 350, y: 250 });
+          }, { x: 350, y: 280 });
 
           // Add stickies after another delay
           setTimeout(() => {
@@ -77,13 +77,13 @@ export default function CourseListScreen() {
                 title: 'Environment Setup',
                 description: 'Install development tools',
                 tasks: []
-              }, { x: 600, y: 80 });
+              }, { x: 650, y: 50 });
 
               addSticky(firstCourse.id, firstModule.id, {
                 title: 'Hello World App',
                 description: 'Create your first app',
                 tasks: []
-              }, { x: 550, y: 180 });
+              }, { x: 600, y: 200 });
             }
           }, 200);
         }
