@@ -1,8 +1,11 @@
 import React from 'react';
+import { Text, Pressable } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { Ionicons } from '@expo/vector-icons';
 import { Course, Module, Sticky } from '../types';
 
 // Import screens
+import MindMapScreen from '../screens/MindMapScreen';
 import CourseListScreen from '../screens/CourseListScreen';
 import CourseDetailScreen from '../screens/CourseDetailScreen';
 import ModuleDetailScreen from '../screens/ModuleDetailScreen';
@@ -13,6 +16,7 @@ import CreateStickyScreen from '../screens/CreateStickyScreen';
 import CreateTaskScreen from '../screens/CreateTaskScreen';
 
 export type RootStackParamList = {
+  MindMap: undefined;
   CourseList: undefined;
   CourseDetail: { course: Course };
   ModuleDetail: { course: Course; module: Module };
@@ -28,7 +32,7 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 export default function AppNavigator() {
   return (
     <Stack.Navigator
-      initialRouteName="CourseList"
+      initialRouteName="MindMap"
       screenOptions={{
         headerStyle: {
           backgroundColor: '#f8f9fa',
@@ -40,12 +44,28 @@ export default function AppNavigator() {
       }}
     >
       <Stack.Screen 
+        name="MindMap" 
+        component={MindMapScreen}
+        options={{
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen 
         name="CourseList" 
         component={CourseListScreen}
-        options={{
+        options={({ navigation }) => ({
           title: 'My Courses',
           headerLargeTitle: true,
-        }}
+          headerRight: () => (
+            <Pressable
+              onPress={() => navigation.navigate('MindMap')}
+              className="bg-blue-100 px-3 py-2 rounded-lg flex-row items-center mr-2"
+            >
+              <Ionicons name="git-network-outline" size={16} color="#3B82F6" />
+              <Text className="text-blue-600 font-medium ml-1 text-sm">Mind Map</Text>
+            </Pressable>
+          ),
+        })}
       />
       <Stack.Screen 
         name="CourseDetail" 
