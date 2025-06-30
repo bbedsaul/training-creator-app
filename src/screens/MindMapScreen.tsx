@@ -20,6 +20,28 @@ export default function MindMapScreen() {
   const insets = useSafeAreaInsets();
   const { courses, addCourse, addModule, addSticky, addTask, getAllNodes, getConnections } = useCourseStore();
   
+  // Determine what type of object will be created next
+  const getNextCreationType = () => {
+    if (courses.length === 0) {
+      return 'course';
+    }
+    
+    const hasCoursesWithoutModules = courses.some(c => c.modules.length === 0);
+    const hasModulesWithoutStickies = courses.some(c => 
+      c.modules.some(m => m.stickies.length === 0)
+    );
+    const hasStickiesWithoutTasks = courses.some(c => 
+      c.modules.some(m => 
+        m.stickies.some(s => s.tasks.length === 0)
+      )
+    );
+    
+    if (hasCoursesWithoutModules) return 'module';
+    if (hasModulesWithoutStickies) return 'sticky';
+    if (hasStickiesWithoutTasks) return 'task';
+    return 'course';
+  };
+  
   // Debug function to clear all data
   const clearAllData = async () => {
     try {
@@ -132,8 +154,57 @@ export default function MindMapScreen() {
       setSelectedParentIds({});
       setCreateModalVisible(true);
     } else {
-      // For other types, we need to select parents
-      await selectParentForNode(type);
+      // For smart creation, automatically find the best parent
+      await selectParentForNodeSmart(type);
+    }
+  };
+
+  const selectParentForNodeSmart = async (type: 'module' | 'sticky' | 'task') => {
+    if (type === 'module') {
+      // Find the first course without modules or the course with the fewest modules
+      const targetCourse = courses.find(c => c.modules.length === 0) || 
+                          courses.reduce((prev, curr) => 
+                            prev.modules.length <= curr.modules.length ? prev : curr
+                          );
+      
+      if (targetCourse) {
+        setSelectedParentIds({ courseId: targetCourse.id });
+        setCreateModalVisible(true);
+      }
+    } else if (type === 'sticky') {
+      // Find the first module without stickies
+      for (const course of courses) {
+        const targetModule = course.modules.find(m => m.stickies.length === 0) ||
+                           course.modules.reduce((prev, curr) => 
+                             prev.stickies.length <= curr.stickies.length ? prev : curr
+                           );
+        
+        if (targetModule) {
+          setSelectedParentIds({ courseId: course.id, moduleId: targetModule.id });
+          setCreateModalVisible(true);
+          return;
+        }
+      }
+    } else if (type === 'task') {
+      // Find the first sticky without tasks
+      for (const course of courses) {
+        for (const module of course.modules) {
+          const targetSticky = module.stickies.find(s => s.tasks.length === 0) ||
+                             module.stickies.reduce((prev, curr) => 
+                               prev.tasks.length <= curr.tasks.length ? prev : curr
+                             );
+          
+          if (targetSticky) {
+            setSelectedParentIds({ 
+              courseId: course.id, 
+              moduleId: module.id, 
+              stickyId: targetSticky.id 
+            });
+            setCreateModalVisible(true);
+            return;
+          }
+        }
+      }
     }
   };
 
@@ -365,7 +436,7 @@ export default function MindMapScreen() {
               Drag nodes to organize • Long press to create • Pinch to zoom
             </Text>
             <Text className="text-gray-500 text-xs mt-1">
-              {getAllNodes().length} nodes • {getConnections().length} connections
+              {getAllNodes().length} nodes • {getConnections().length} connections • Next: {getNextCreationType()}
             </Text>
           </View>
           
@@ -393,6 +464,7 @@ export default function MindMapScreen() {
       <MindMapCanvas
         onCreateNode={handleCreateNode}
         onNodePress={handleNodePress}
+        nextCreationType={getNextCreationType()}
       />
 
       {/* Create Modal */}

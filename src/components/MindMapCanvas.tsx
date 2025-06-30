@@ -18,11 +18,13 @@ const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 interface MindMapCanvasProps {
   onCreateNode?: (type: 'course' | 'module' | 'sticky' | 'task', position: { x: number; y: number }) => void;
   onNodePress?: (node: MindMapNode) => void;
+  nextCreationType?: string;
 }
 
 const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
   onCreateNode,
   onNodePress,
+  nextCreationType = 'course',
 }) => {
   const { 
     getAllNodes, 
@@ -195,8 +197,8 @@ const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
   };
 
   const handleCanvasLongPress = () => {
-    // Simply create a course by default for now
-    onCreateNode?.('course', { x: 200, y: 200 });
+    // Use the smart creation logic
+    onCreateNode?.(nextCreationType as any, { x: 200, y: 200 });
   };
 
   const nodes = getAllNodes();
@@ -240,12 +242,33 @@ const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
           <Ionicons name="home-outline" size={20} color="#374151" />
         </Pressable>
         
-        <Pressable
-          onPress={() => onCreateNode?.('course', { x: 100, y: 100 })}
-          className="bg-blue-500 w-12 h-12 rounded-full items-center justify-center shadow-lg"
-        >
-          <Ionicons name="add" size={24} color="white" />
-        </Pressable>
+        <View className="items-center">
+          <Pressable
+            onPress={() => {
+              onCreateNode?.(nextCreationType as any, { x: 100, y: 100 });
+            }}
+            className="bg-blue-500 w-12 h-12 rounded-full items-center justify-center shadow-lg"
+          >
+            <View className="items-center">
+              <Ionicons 
+                name={
+                  nextCreationType === 'course' ? 'school-outline' :
+                  nextCreationType === 'module' ? 'library-outline' :
+                  nextCreationType === 'sticky' ? 'document-text-outline' :
+                  'checkmark-circle-outline'
+                } 
+                size={16} 
+                color="white" 
+              />
+              <Ionicons name="add" size={12} color="white" style={{ marginTop: -2 }} />
+            </View>
+          </Pressable>
+          <View className="bg-blue-500 px-2 py-1 rounded-full mt-1">
+            <Text className="text-white text-xs font-medium capitalize">
+              {nextCreationType}
+            </Text>
+          </View>
+        </View>
       </View>
 
       {/* Main Canvas */}
