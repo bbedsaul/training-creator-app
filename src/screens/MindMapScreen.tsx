@@ -6,7 +6,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCourseStore } from '../state/courseStore';
-import { MindMapNode, Position } from '../types';
+import { MindMapNode, Position, Course } from '../types';
 import MindMapCanvas from '../components/MindMapCanvas';
 import CreateCourseScreen from './CreateCourseScreen';
 import CreateModuleScreen from './CreateModuleScreen';
@@ -14,33 +14,26 @@ import CreateStickyScreen from './CreateStickyScreen';
 import CreateTaskScreen from './CreateTaskScreen';
 import { RootStackParamList } from '../navigation/AppNavigator';
 
-type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'CourseList'>;
+type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'MindMap'>;
 
-export default function MindMapScreen() {
+export default function MindMapScreen({ route }: { route: { params: { course: Course } } }) {
   const navigation = useNavigation<NavigationProp>();
   const insets = useSafeAreaInsets();
-  const { courses, addCourse, addModule, addSticky, addTask, getAllNodes, getConnections } = useCourseStore();
+  const { course } = route.params;
+  const { updateCourse, addModule, addSticky, addTask, getAllNodesForCourse, getConnectionsForCourse } = useCourseStore();
   
   // Determine what type of object will be created next
   const getNextCreationType = () => {
-    if (courses.length === 0) {
-      return 'course';
-    }
-    
-    const hasCoursesWithoutModules = courses.some(c => c.modules.length === 0);
-    const hasModulesWithoutStickies = courses.some(c => 
-      c.modules.some(m => m.stickies.length === 0)
-    );
-    const hasStickiesWithoutTasks = courses.some(c => 
-      c.modules.some(m => 
-        m.stickies.some(s => s.tasks.length === 0)
-      )
+    const hasModules = course.modules.length > 0;
+    const hasModulesWithoutStickies = course.modules.some(m => m.stickies.length === 0);
+    const hasStickiesWithoutTasks = course.modules.some(m => 
+      m.stickies.some(s => s.tasks.length === 0)
     );
     
-    if (hasCoursesWithoutModules) return 'module';
+    if (!hasModules) return 'module';
     if (hasModulesWithoutStickies) return 'sticky';
     if (hasStickiesWithoutTasks) return 'task';
-    return 'course';
+    return 'module';
   };
   
   // Debug function to clear all data
@@ -52,81 +45,16 @@ export default function MindMapScreen() {
     }
   };
   
-  // Add sample data on first load
+  // Initialize course position if it doesn't have one
   React.useEffect(() => {
-    if (courses.length === 0) {
-      // Add sample course
-      addCourse({
-        title: 'React Native Mastery',
-        description: 'Complete course to master React Native development',
-        category: 'Programming',
-        difficulty: 'Intermediate',
-        estimatedDuration: '8 weeks',
-        modules: []
-      }, { x: 100, y: 100 });
-      
-      // Add a second course for demonstration
-      addCourse({
-        title: 'JavaScript Fundamentals',
-        description: 'Learn the basics of JavaScript programming',
-        category: 'Programming',
-        difficulty: 'Beginner',
-        estimatedDuration: '4 weeks',
-        modules: []
-      }, { x: 400, y: 100 });
-      
-      // Add modules and content after courses are created
-      setTimeout(() => {
-        const state = useCourseStore.getState();
-        if (state.courses.length >= 2) {
-          const rnCourse = state.courses[0];
-          const jsCourse = state.courses[1];
-          
-          // Add modules to React Native course
-          addModule(rnCourse.id, {
-            title: 'Getting Started',
-            description: 'Setup and basics',
-            stickies: []
-          }, { x: 300, y: 200 });
-          
-          addModule(rnCourse.id, {
-            title: 'Navigation',
-            description: 'React Navigation',
-            stickies: []
-          }, { x: 150, y: 250 });
-          
-          // Add modules to JavaScript course
-          addModule(jsCourse.id, {
-            title: 'Variables & Types',
-            description: 'Basic data types',
-            stickies: []
-          }, { x: 600, y: 200 });
-          
-          // Add stickies after a short delay
-          setTimeout(() => {
-            const updatedState = useCourseStore.getState();
-            const updatedRnCourse = updatedState.courses.find(c => c.id === rnCourse.id);
-            
-            if (updatedRnCourse && updatedRnCourse.modules.length > 0) {
-              const gettingStartedModule = updatedRnCourse.modules[0];
-              
-              addSticky(rnCourse.id, gettingStartedModule.id, {
-                title: 'Environment Setup',
-                description: 'Install tools',
-                tasks: []
-              }, { x: 450, y: 300 });
-              
-              addSticky(rnCourse.id, gettingStartedModule.id, {
-                title: 'First App',
-                description: 'Hello World',
-                tasks: []
-              }, { x: 350, y: 350 });
-            }
-          }, 200);
-        }
-      }, 100);
+    if (!course.position || !course.size) {
+      updateCourse(course.id, {
+        position: { x: 200, y: 150 },
+        size: { width: 200, height: 120 },
+        color: '#3B82F6'
+      });
     }
-  }, []);
+  }, [course.id]);
   
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [createType, setCreateType] = useState<'course' | 'module' | 'sticky' | 'task'>('course');
@@ -159,49 +87,54 @@ export default function MindMapScreen() {
 
   const selectParentForNodeSmart = async (type: 'module' | 'sticky' | 'task') => {
     if (type === 'module') {
-      // Find the first course without modules or the course with the fewest modules
-      const targetCourse = courses.find(c => c.modules.length === 0) || 
-                          courses.reduce((prev, curr) => 
-                            prev.modules.length <= curr.modules.length ? prev : curr
-                          );
-      
-      if (targetCourse) {
-        setSelectedParentIds({ courseId: targetCourse.id });
-        setCreateModalVisible(true);
-      }
+      // For modules, always attach to the current course
+      setSelectedParentIds({ courseId: course.id });
+      setCreateModalVisible(true);
     } else if (type === 'sticky') {
-      // Find the first module without stickies
-      for (const course of courses) {
-        const targetModule = course.modules.find(m => m.stickies.length === 0) ||
-                           course.modules.reduce((prev, curr) => 
-                             prev.stickies.length <= curr.stickies.length ? prev : curr
-                           );
-        
-        if (targetModule) {
-          setSelectedParentIds({ courseId: course.id, moduleId: targetModule.id });
-          setCreateModalVisible(true);
-          return;
-        }
+      // Find the first module without stickies or the one with fewest stickies
+      if (course.modules.length === 0) {
+        showSelectionModal('No Modules', 'Please create a module first', [
+          { text: 'OK', onPress: () => setSelectionModalVisible(false) }
+        ]);
+        return;
       }
+      
+      const targetModule = course.modules.find(m => m.stickies.length === 0) ||
+                         course.modules.reduce((prev, curr) => 
+                           prev.stickies.length <= curr.stickies.length ? prev : curr
+                         );
+      
+      setSelectedParentIds({ courseId: course.id, moduleId: targetModule.id });
+      setCreateModalVisible(true);
     } else if (type === 'task') {
       // Find the first sticky without tasks
-      for (const course of courses) {
-        for (const module of course.modules) {
-          const targetSticky = module.stickies.find(s => s.tasks.length === 0) ||
-                             module.stickies.reduce((prev, curr) => 
-                               prev.tasks.length <= curr.tasks.length ? prev : curr
-                             );
-          
-          if (targetSticky) {
-            setSelectedParentIds({ 
-              courseId: course.id, 
-              moduleId: module.id, 
-              stickyId: targetSticky.id 
-            });
-            setCreateModalVisible(true);
-            return;
-          }
+      let targetSticky = null;
+      let targetModule = null;
+      
+      for (const module of course.modules) {
+        const sticky = module.stickies.find(s => s.tasks.length === 0) ||
+                      module.stickies.reduce((prev, curr) => 
+                        prev.tasks.length <= curr.tasks.length ? prev : curr
+                      );
+        
+        if (sticky) {
+          targetSticky = sticky;
+          targetModule = module;
+          break;
         }
+      }
+      
+      if (targetSticky && targetModule) {
+        setSelectedParentIds({ 
+          courseId: course.id, 
+          moduleId: targetModule.id, 
+          stickyId: targetSticky.id 
+        });
+        setCreateModalVisible(true);
+      } else {
+        showSelectionModal('No Stickies', 'Please create a sticky first', [
+          { text: 'OK', onPress: () => setSelectionModalVisible(false) }
+        ]);
       }
     }
   };
@@ -212,93 +145,69 @@ export default function MindMapScreen() {
   };
 
   const selectParentForNode = async (type: 'module' | 'sticky' | 'task') => {
-    if (courses.length === 0) {
-      showSelectionModal('No Courses', 'Please create a course first', [
-        { text: 'OK', onPress: () => setSelectionModalVisible(false) }
-      ]);
-      return;
-    }
-
     if (type === 'module') {
-      // Select course for module
-      const courseOptions = courses.map(course => ({
-        text: course.title,
+      // For modules, always attach to the current course
+      setSelectedParentIds({ courseId: course.id });
+      setCreateModalVisible(true);
+    } else if (type === 'sticky') {
+      // Select module for sticky
+      if (course.modules.length === 0) {
+        showSelectionModal('No Modules', 'Please create a module first', [
+          { text: 'OK', onPress: () => setSelectionModalVisible(false) }
+        ]);
+        return;
+      }
+
+      const moduleOptions = course.modules.map(module => ({
+        text: module.title,
         onPress: () => {
-          setSelectedParentIds({ courseId: course.id });
+          setSelectedParentIds({ courseId: course.id, moduleId: module.id });
           setSelectionModalVisible(false);
           setCreateModalVisible(true);
         }
       }));
       
       showSelectionModal(
-        'Select Course',
-        'Which course should this module belong to?',
+        'Select Module',
+        'Which module should this sticky belong to?',
         [
           { text: 'Cancel', onPress: () => setSelectionModalVisible(false) },
-          ...courseOptions,
-        ]
-      );
-    } else if (type === 'sticky') {
-      // Select course and module for sticky
-      const courseOptions = courses
-        .filter(course => course.modules.length > 0)
-        .map(course => ({
-          text: course.title,
-          onPress: () => {
-            setSelectionModalVisible(false);
-            selectModuleForSticky(course.id);
-          }
-        }));
-      
-      if (courseOptions.length === 0) {
-        showSelectionModal('No Modules', 'Please create a module first', [
-          { text: 'OK', onPress: () => setSelectionModalVisible(false) }
-        ]);
-        return;
-      }
-      
-      showSelectionModal(
-        'Select Course',
-        'Which course should this sticky belong to?',
-        [
-          { text: 'Cancel', onPress: () => setSelectionModalVisible(false) },
-          ...courseOptions,
+          ...moduleOptions,
         ]
       );
     } else if (type === 'task') {
-      // Select course, module, and sticky for task
-      const courseOptions = courses
-        .filter(course => course.modules.some(m => m.stickies.length > 0))
-        .map(course => ({
-          text: course.title,
-          onPress: () => {
-            setSelectionModalVisible(false);
-            selectModuleForTask(course.id);
-          }
-        }));
+      // Select module and sticky for task
+      const modulesWithStickies = course.modules.filter(m => m.stickies.length > 0);
       
-      if (courseOptions.length === 0) {
+      if (modulesWithStickies.length === 0) {
         showSelectionModal('No Stickies', 'Please create a sticky first', [
           { text: 'OK', onPress: () => setSelectionModalVisible(false) }
         ]);
         return;
       }
+
+      const moduleOptions = modulesWithStickies.map(module => ({
+        text: module.title,
+        onPress: () => {
+          setSelectionModalVisible(false);
+          selectStickyForTask(course.id, module.id);
+        }
+      }));
       
       showSelectionModal(
-        'Select Course',
-        'Which course should this task belong to?',
+        'Select Module',
+        'Which module should this task belong to?',
         [
           { text: 'Cancel', onPress: () => setSelectionModalVisible(false) },
-          ...courseOptions,
+          ...moduleOptions,
         ]
       );
     }
   };
 
   const selectModuleForSticky = (courseId: string) => {
-    const course = courses.find(c => c.id === courseId);
-    if (!course) return;
-    
+    // This function is now redundant since we're working with a single course
+    // but keeping it for compatibility with existing calls
     const moduleOptions = course.modules.map(module => ({
       text: module.title,
       onPress: () => {
@@ -319,9 +228,6 @@ export default function MindMapScreen() {
   };
 
   const selectModuleForTask = (courseId: string) => {
-    const course = courses.find(c => c.id === courseId);
-    if (!course) return;
-    
     const moduleOptions = course.modules
       .filter(m => m.stickies.length > 0)
       .map(module => ({
@@ -343,8 +249,7 @@ export default function MindMapScreen() {
   };
 
   const selectStickyForTask = (courseId: string, moduleId: string) => {
-    const course = courses.find(c => c.id === courseId);
-    const module = course?.modules.find(m => m.id === moduleId);
+    const module = course.modules.find(m => m.id === moduleId);
     if (!module) return;
     
     const stickyOptions = module.stickies.map(sticky => ({
@@ -384,12 +289,23 @@ export default function MindMapScreen() {
   const navigateToNodeDetail = (node: MindMapNode) => {
     // Navigate to appropriate detail screen based on node type
     if (node.type === 'course') {
-      const course = courses.find(c => c.id === node.id);
-      if (course) {
-        navigation.navigate('CourseDetail', { course });
+      navigation.navigate('CourseDetail', { course });
+    } else if (node.type === 'module') {
+      const module = course.modules.find(m => m.id === node.id);
+      if (module) {
+        navigation.navigate('ModuleDetail', { course, module });
+      }
+    } else if (node.type === 'sticky') {
+      // Find the module and sticky
+      for (const module of course.modules) {
+        const sticky = module.stickies.find(s => s.id === node.id);
+        if (sticky) {
+          navigation.navigate('StickyDetail', { course, module, sticky });
+          return;
+        }
       }
     }
-    // Add other navigation cases as needed
+    // Tasks don't have detail screens yet
   };
 
   const closeModal = () => {
@@ -428,33 +344,23 @@ export default function MindMapScreen() {
         <View className="flex-row items-center justify-between">
           <View className="flex-1">
             <Text className="text-2xl font-bold text-gray-900">
-              Course Mind Map
+              {course.title}
             </Text>
             <Text className="text-gray-600 text-sm mt-1">
               Drag nodes to organize • Long press to create • Pinch to zoom
             </Text>
             <Text className="text-gray-500 text-xs mt-1">
-              {getAllNodes().length} nodes • {getConnections().length} connections • Next: {getNextCreationType()}
+              {getAllNodesForCourse(course.id).length} nodes • {getConnectionsForCourse(course.id).length} connections • Next: {getNextCreationType()}
             </Text>
           </View>
           
-          <View className="flex-row space-x-2">
-            <Pressable
-              onPress={clearAllData}
-              className="bg-red-100 px-3 py-2 rounded-lg flex-row items-center"
-            >
-              <Ionicons name="refresh-outline" size={16} color="#DC2626" />
-              <Text className="text-red-600 font-medium ml-1 text-sm">Reset</Text>
-            </Pressable>
-            
-            <Pressable
-              onPress={() => navigation.navigate('CourseList')}
-              className="bg-gray-100 px-4 py-2 rounded-lg flex-row items-center"
-            >
-              <Ionicons name="list-outline" size={16} color="#374151" />
-              <Text className="text-gray-700 font-medium ml-2">List View</Text>
-            </Pressable>
-          </View>
+          <Pressable
+            onPress={() => navigation.goBack()}
+            className="bg-gray-100 px-4 py-2 rounded-lg flex-row items-center"
+          >
+            <Ionicons name="arrow-back-outline" size={16} color="#374151" />
+            <Text className="text-gray-700 font-medium ml-2">Back to Courses</Text>
+          </Pressable>
         </View>
       </View>
 
@@ -463,6 +369,7 @@ export default function MindMapScreen() {
         onCreateNode={handleCreateNode}
         onNodePress={handleNodePress}
         nextCreationType={getNextCreationType()}
+        courseId={course.id}
       />
 
       {/* Create Modal */}

@@ -105,4 +105,7 @@ export interface CourseStore {
   getAllNodes: () => MindMapNode[];
   getConnections: () => Connection[];
   toggleNodeCollapse: (nodeType: 'course' | 'module' | 'sticky', courseId: string, nodeId: string, moduleId?: string) => void;
+  // Single course methods
+  getAllNodesForCourse: (courseId: string) => MindMapNode[];
+  getConnectionsForCourse: (courseId: string) => Connection[];
 }

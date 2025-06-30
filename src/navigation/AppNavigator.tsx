@@ -16,7 +16,7 @@ import CreateStickyScreen from '../screens/CreateStickyScreen';
 import CreateTaskScreen from '../screens/CreateTaskScreen';
 
 export type RootStackParamList = {
-  MindMap: undefined;
+  MindMap: { course: Course };
   CourseList: undefined;
   CourseDetail: { course: Course };
   ModuleDetail: { course: Course; module: Module };
@@ -32,7 +32,7 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 export default function AppNavigator() {
   return (
     <Stack.Navigator
-      initialRouteName="MindMap"
+      initialRouteName="CourseList"
       screenOptions={{
         headerStyle: {
           backgroundColor: '#f8f9fa',
@@ -53,19 +53,10 @@ export default function AppNavigator() {
       <Stack.Screen 
         name="CourseList" 
         component={CourseListScreen}
-        options={({ navigation }) => ({
-          title: 'My Courses',
+        options={{
+          title: 'Training Courses',
           headerLargeTitle: true,
-          headerRight: () => (
-            <Pressable
-              onPress={() => navigation.navigate('MindMap')}
-              className="bg-blue-100 px-3 py-2 rounded-lg flex-row items-center mr-2"
-            >
-              <Ionicons name="git-network-outline" size={16} color="#3B82F6" />
-              <Text className="text-blue-600 font-medium ml-1 text-sm">Mind Map</Text>
-            </Pressable>
-          ),
-        })}
+        }}
       />
       <Stack.Screen 
         name="CourseDetail" 

@@ -19,16 +19,20 @@ interface MindMapCanvasProps {
   onCreateNode?: (type: 'course' | 'module' | 'sticky' | 'task', position: { x: number; y: number }) => void;
   onNodePress?: (node: MindMapNode) => void;
   nextCreationType?: string;
+  courseId?: string;
 }
 
 const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
   onCreateNode,
   onNodePress,
   nextCreationType = 'course',
+  courseId,
 }) => {
   const { 
     getAllNodes, 
     getConnections, 
+    getAllNodesForCourse,
+    getConnectionsForCourse,
     updateNodePosition, 
     updateCanvasTransform, 
     canvasOffset, 
@@ -201,8 +205,8 @@ const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
     onCreateNode?.(nextCreationType as any, { x: 200, y: 200 });
   };
 
-  const nodes = getAllNodes();
-  const connections = getConnections();
+  const nodes = courseId ? getAllNodesForCourse(courseId) : getAllNodes();
+  const connections = courseId ? getConnectionsForCourse(courseId) : getConnections();
   
   // Add test connections for debugging
   const testConnections = [

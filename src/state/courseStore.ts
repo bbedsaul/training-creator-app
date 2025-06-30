@@ -570,6 +570,154 @@ export const useCourseStore = create<CourseStore>()(
           })
         }));
       },
+
+      // Single course methods
+      getAllNodesForCourse: (courseId: string) => {
+        const state = get();
+        const course = state.courses.find(c => c.id === courseId);
+        if (!course) return [];
+
+        const nodes: MindMapNode[] = [];
+        
+        // Ensure course has position and size
+        if (!course.position || !course.size) return [];
+        
+        nodes.push({
+          id: course.id,
+          type: 'course',
+          title: course.title,
+          position: course.position,
+          size: course.size,
+          color: course.color || NODE_COLORS.course,
+          isCollapsed: course.isCollapsed || false,
+        });
+        
+        if (!course.isCollapsed) {
+          course.modules.forEach(module => {
+            // Ensure module has position and size
+            if (!module.position || !module.size) return;
+            
+            nodes.push({
+              id: module.id,
+              type: 'module',
+              title: module.title,
+              position: module.position,
+              size: module.size,
+              parentId: course.id,
+              color: module.color || NODE_COLORS.module,
+              isCollapsed: module.isCollapsed || false,
+            });
+            
+            if (!module.isCollapsed) {
+              module.stickies.forEach(sticky => {
+                // Ensure sticky has position and size
+                if (!sticky.position || !sticky.size) return;
+                
+                nodes.push({
+                  id: sticky.id,
+                  type: 'sticky',
+                  title: sticky.title,
+                  position: sticky.position,
+                  size: sticky.size,
+                  parentId: module.id,
+                  color: sticky.color || NODE_COLORS.sticky,
+                  isCollapsed: sticky.isCollapsed || false,
+                });
+                
+                if (!sticky.isCollapsed) {
+                  sticky.tasks.forEach(task => {
+                    // Ensure task has position and size
+                    if (!task.position || !task.size) return;
+                    
+                    nodes.push({
+                      id: task.id,
+                      type: 'task',
+                      title: task.title,
+                      position: task.position,
+                      size: task.size,
+                      parentId: sticky.id,
+                      color: task.color || NODE_COLORS.task,
+                      isCollapsed: false,
+                    });
+                  });
+                }
+              });
+            }
+          });
+        }
+        
+        return nodes;
+      },
+
+      getConnectionsForCourse: (courseId: string) => {
+        const state = get();
+        const course = state.courses.find(c => c.id === courseId);
+        if (!course) return [];
+
+        const connections: Connection[] = [];
+        
+        // Ensure course has position and size
+        if (!course.position || !course.size) return [];
+        
+        course.modules.forEach(module => {
+          // Ensure module has position and size
+          if (!module.position || !module.size) return;
+          
+          connections.push({
+            id: `${course.id}-${module.id}`,
+            fromNodeId: course.id,
+            toNodeId: module.id,
+            fromPosition: {
+              x: course.position.x + course.size.width / 2,
+              y: course.position.y + course.size.height / 2,
+            },
+            toPosition: {
+              x: module.position.x + module.size.width / 2,
+              y: module.position.y + module.size.height / 2,
+            },
+          });
+          
+          module.stickies.forEach(sticky => {
+            // Ensure sticky has position and size
+            if (!sticky.position || !sticky.size) return;
+            
+            connections.push({
+              id: `${module.id}-${sticky.id}`,
+              fromNodeId: module.id,
+              toNodeId: sticky.id,
+              fromPosition: {
+                x: module.position.x + module.size.width / 2,
+                y: module.position.y + module.size.height / 2,
+              },
+              toPosition: {
+                x: sticky.position.x + sticky.size.width / 2,
+                y: sticky.position.y + sticky.size.height / 2,
+              },
+            });
+            
+            sticky.tasks.forEach(task => {
+              // Ensure task has position and size
+              if (!task.position || !task.size) return;
+              
+              connections.push({
+                id: `${sticky.id}-${task.id}`,
+                fromNodeId: sticky.id,
+                toNodeId: task.id,
+                fromPosition: {
+                  x: sticky.position.x + sticky.size.width / 2,
+                  y: sticky.position.y + sticky.size.height / 2,
+                },
+                toPosition: {
+                  x: task.position.x + task.size.width / 2,
+                  y: task.position.y + task.size.height / 2,
+                },
+              });
+            });
+          });
+        });
+        
+        return connections;
+      },
     }),
     {
       name: 'course-storage',

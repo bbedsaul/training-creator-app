@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Pressable, ScrollView, Alert } from 'react-native';
+import { View, Text, Pressable, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -13,22 +13,39 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'CourseList'
 export default function CourseListScreen() {
   const navigation = useNavigation<NavigationProp>();
   const insets = useSafeAreaInsets();
-  const { courses, deleteCourse } = useCourseStore();
+  const { courses, deleteCourse, addCourse } = useCourseStore();
 
-  const handleDeleteCourse = (course: Course) => {
-    Alert.alert(
-      'Delete Course',
-      `Are you sure you want to delete "${course.title}"? This will remove all modules, stickies, and tasks within this course.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Delete', 
-          style: 'destructive',
-          onPress: () => deleteCourse(course.id)
-        }
-      ]
-    );
-  };
+  // Add sample courses if none exist
+  React.useEffect(() => {
+    if (courses.length === 0) {
+      addCourse({
+        title: 'React Native Fundamentals',
+        description: 'Learn the basics of React Native development from scratch',
+        category: 'Mobile Development',
+        difficulty: 'Beginner',
+        estimatedDuration: '6 weeks',
+        modules: []
+      });
+      
+      addCourse({
+        title: 'Advanced JavaScript Patterns',
+        description: 'Master advanced JavaScript concepts and design patterns',
+        category: 'Programming',
+        difficulty: 'Advanced',
+        estimatedDuration: '8 weeks',
+        modules: []
+      });
+
+      addCourse({
+        title: 'UI/UX Design Principles',
+        description: 'Create beautiful and intuitive user interfaces',
+        category: 'Design',
+        difficulty: 'Intermediate',
+        estimatedDuration: '4 weeks',
+        modules: []
+      });
+    }
+  }, []);
 
   const getDifficultyColor = (difficulty?: string) => {
     switch (difficulty) {
@@ -89,9 +106,8 @@ export default function CourseListScreen() {
           ) : (
             <View className="space-y-4">
               {courses.map((course) => (
-                <Pressable
+                <View
                   key={course.id}
-                  onPress={() => navigation.navigate('CourseDetail', { course })}
                   className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm"
                 >
                   <View className="flex-row justify-between items-start mb-3">
@@ -104,7 +120,7 @@ export default function CourseListScreen() {
                       </Text>
                     </View>
                     <Pressable
-                      onPress={() => handleDeleteCourse(course)}
+                      onPress={() => deleteCourse(course.id)}
                       className="p-2"
                     >
                       <Ionicons name="trash-outline" size={18} color="#EF4444" />
@@ -134,7 +150,7 @@ export default function CourseListScreen() {
                     </View>
                   </View>
 
-                  <View className="flex-row items-center justify-between">
+                  <View className="flex-row items-center justify-between mb-3">
                     <View className="flex-row items-center space-x-2">
                       {course.difficulty && (
                         <View className={`px-2 py-1 rounded-full ${getDifficultyColor(course.difficulty)}`}>
@@ -150,12 +166,38 @@ export default function CourseListScreen() {
                           </Text>
                         </View>
                       )}
+                      {course.estimatedDuration && (
+                        <View className="bg-gray-100 px-2 py-1 rounded-full">
+                          <Text className="text-xs font-medium text-gray-600">
+                            {course.estimatedDuration}
+                          </Text>
+                        </View>
+                      )}
                     </View>
                     <Text className="text-xs text-gray-500">
                       {formatDate(course.updatedAt)}
                     </Text>
                   </View>
-                </Pressable>
+
+                  {/* Action Buttons */}
+                  <View className="flex-row space-x-3">
+                    <Pressable
+                      onPress={() => navigation.navigate('MindMap', { course })}
+                      className="flex-1 bg-blue-500 py-3 px-4 rounded-lg flex-row items-center justify-center"
+                    >
+                      <Ionicons name="git-network-outline" size={16} color="white" />
+                      <Text className="text-white font-medium ml-2">Mind Map</Text>
+                    </Pressable>
+                    
+                    <Pressable
+                      onPress={() => navigation.navigate('CourseDetail', { course })}
+                      className="flex-1 bg-gray-100 py-3 px-4 rounded-lg flex-row items-center justify-center"
+                    >
+                      <Ionicons name="list-outline" size={16} color="#374151" />
+                      <Text className="text-gray-700 font-medium ml-2">Details</Text>
+                    </Pressable>
+                  </View>
+                </View>
               ))}
             </View>
           )}
