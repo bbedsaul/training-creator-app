@@ -1,9 +1,10 @@
 import React from 'react';
-import { View, Text, Pressable } from 'react-native';
+import { View, Text } from 'react-native';
 import Animated, { 
   useSharedValue, 
   useAnimatedStyle, 
   withSpring,
+  withRepeat,
   runOnJS,
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -13,30 +14,46 @@ import { MindMapNode } from '../types';
 interface DraggableNodeProps {
   node: MindMapNode;
   onPositionChange: (nodeId: string, x: number, y: number) => void;
-  onPress?: (node: MindMapNode) => void;
-  onToggleCollapse?: (node: MindMapNode) => void;
+  onLongPress: (node: MindMapNode) => void;
   scale: number;
+  isBeingEdited?: boolean;
 }
 
 const DraggableNode: React.FC<DraggableNodeProps> = ({
   node,
   onPositionChange,
-  onPress,
-  onToggleCollapse,
+  onLongPress,
   scale,
+  isBeingEdited = false,
 }) => {
   const translateX = useSharedValue(node.position.x);
   const translateY = useSharedValue(node.position.y);
   const isDragging = useSharedValue(false);
+  const pulseAnimation = useSharedValue(1);
 
   React.useEffect(() => {
     translateX.value = node.position.x;
     translateY.value = node.position.y;
   }, [node.position.x, node.position.y]);
 
+  // Pulse animation for editing state
+  React.useEffect(() => {
+    if (isBeingEdited) {
+      pulseAnimation.value = withRepeat(
+        withSpring(1.1, { duration: 1000 }),
+        -1,
+        true
+      );
+    } else {
+      pulseAnimation.value = withSpring(1);
+    }
+  }, [isBeingEdited]);
+
+  // Pan gesture for dragging
   const panGesture = Gesture.Pan()
     .onStart(() => {
       isDragging.value = true;
+      console.log('Pan started on:', node.title);
     })
     .onUpdate((event) => {
       translateX.value = node.position.x + event.translationX / scale;
@@ -44,97 +61,98 @@ const DraggableNode: React.FC<DraggableNodeProps> = ({
     })
     .onEnd(() => {
       isDragging.value = false;
-      // Update position in store
+      console.log('Pan ended on:', node.title);
       runOnJS(onPositionChange)(node.id, translateX.value, translateY.value);
     });
+
+  // Long press gesture for creating children
+  const longPressGesture = Gesture.LongPress()
+    .minDuration(600) // 600ms long press
+    .onStart(() => {
+      console.log('Long press triggered on:', node.type, node.title);
+      if (node.type !== 'task') { // Tasks can't create children
+        runOnJS(onLongPress)(node);
+      } else {
+        console.log('Tasks cannot create children');
+      }
+    });
+
+  // Combine gestures - long press should work alongside pan
+  const composedGestures = Gesture.Race(longPressGesture, panGesture);
 
   const animatedStyle = useAnimatedStyle(() => {
     return {
       transform: [
         { translateX: translateX.value },
         { translateY: translateY.value },
-        { scale: withSpring(isDragging.value ? 1.05 : 1) },
+        { 
+          scale: withSpring(
+            isDragging.value ? 1.05 : 
+            isBeingEdited ? pulseAnimation.value : 1
+          ) 
+        },
       ],
-      zIndex: isDragging.value ? 1000 : 10,
-      elevation: isDragging.value ? 8 : 5,
+      zIndex: isDragging.value ? 1000 : isBeingEdited ? 500 : 10,
+      elevation: isDragging.value ? 8 : isBeingEdited ? 6 : 5,
     };
   });
 
   const getNodeIcon = () => {
     switch (node.type) {
-      case 'course':
-        return 'school-outline';
-      case 'module':
-        return 'library-outline';
-      case 'sticky':
-        return 'document-text-outline';
-      case 'task':
-        return 'checkmark-circle-outline';
-      default:
-        return 'ellipse-outline';
+      case 'course': return 'school-outline';
+      case 'module': return 'library-outline';
+      case 'sticky': return 'document-text-outline';
+      case 'task': return 'checkmark-circle-outline';
+      default: return 'ellipse-outline';
     }
   };
 
   const getNodeStyle = () => {
-    const baseStyle = {
+    return {
       width: node.size.width,
       height: node.size.height,
       borderRadius: node.type === 'task' ? node.size.height / 2 : 12,
       backgroundColor: node.color,
-      borderWidth: 2,
-      borderColor: node.isCollapsed ? '#6B7280' : 'white',
+      borderWidth: isBeingEdited ? 3 : 2,
+      borderColor: isBeingEdited ? '#3B82F6' : 'white',
+      shadowColor: isBeingEdited ? '#3B82F6' : '#000',
+      shadowOffset: isBeingEdited ? { width: 0, height: 0 } : { width: 0, height: 2 },
+      shadowOpacity: isBeingEdited ? 0.3 : 0.1,
+      shadowRadius: isBeingEdited ? 8 : 4,
     };
-
-    return baseStyle;
   };
 
-  const getTextColor = () => {
-    // Use white text for dark backgrounds
-    return 'white';
-  };
+  const getTextColor = () => 'white';
 
   const getFontSize = () => {
     switch (node.type) {
-      case 'course':
-        return 16;
-      case 'module':
-        return 14;
-      case 'sticky':
-        return 12;
-      case 'task':
-        return 10;
-      default:
-        return 12;
+      case 'course': return 16;
+      case 'module': return 14;
+      case 'sticky': return 12;
+      case 'task': return 10;
+      default: return 12;
     }
   };
 
   return (
-    <GestureDetector gesture={panGesture}>
+    <GestureDetector gesture={composedGestures}>
       <Animated.View style={[animatedStyle, { position: 'absolute' }]}>
-        <Pressable
-          onPress={() => onPress?.(node)}
-          style={getNodeStyle()}
-          className="shadow-lg"
-        >
+        <View style={getNodeStyle()} className="shadow-lg">
           <View className="flex-1 p-2 justify-center items-center">
-            {/* Header with icon and collapse button */}
-            <View className="flex-row items-center justify-between w-full mb-1">
+            {/* Header with icon and editing indicator */}
+            <View className="flex-row items-center justify-center w-full mb-1">
               <Ionicons 
                 name={getNodeIcon() as any} 
                 size={node.type === 'task' ? 12 : 16} 
                 color={getTextColor()} 
               />
-              {(node.type === 'course' || node.type === 'module' || node.type === 'sticky') && (
-                <Pressable
-                  onPress={() => onToggleCollapse?.(node)}
-                  className="p-1"
-                >
-                  <Ionicons 
-                    name={node.isCollapsed ? 'chevron-forward' : 'chevron-down'} 
-                    size={12} 
-                    color={getTextColor()} 
-                  />
-                </Pressable>
+              {isBeingEdited && (
+                <Ionicons 
+                  name="create-outline" 
+                  size={12} 
+                  color={getTextColor()} 
+                  style={{ marginLeft: 4 }}
+                />
               )}
             </View>
 
@@ -166,14 +184,21 @@ const DraggableNode: React.FC<DraggableNodeProps> = ({
               </Text>
             )}
 
-            {/* Collapsed indicator */}
-            {node.isCollapsed && (
+            {/* Long press hint for non-task nodes */}
+            {node.type !== 'task' && !isBeingEdited && (
               <View className="absolute bottom-1 right-1">
-                <Ionicons name="ellipsis-horizontal" size={10} color={getTextColor()} />
+                <Ionicons name="add-circle-outline" size={8} color={getTextColor()} />
+              </View>
+            )}
+
+            {/* Editing indicator */}
+            {isBeingEdited && (
+              <View className="absolute -top-2 -right-2 bg-blue-500 w-6 h-6 rounded-full items-center justify-center">
+                <Ionicons name="create" size={12} color="white" />
               </View>
             )}
           </View>
-        </Pressable>
+        </View>
       </Animated.View>
     </GestureDetector>
   );
