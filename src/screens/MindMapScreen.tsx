@@ -1,54 +1,53 @@
 import React, { useState } from 'react';
-import { View, Text, Modal, Pressable, ScrollView } from 'react-native';
+import { View, Text, Modal, Pressable, TextInput, ScrollView, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCourseStore } from '../state/courseStore';
-import { MindMapNode, Position, Course } from '../types';
+import { MindMapNode, Course } from '../types';
 import MindMapCanvas from '../components/MindMapCanvas';
-import CreateCourseScreen from './CreateCourseScreen';
-import CreateModuleScreen from './CreateModuleScreen';
-import CreateStickyScreen from './CreateStickyScreen';
-import CreateTaskScreen from './CreateTaskScreen';
 import { RootStackParamList } from '../navigation/AppNavigator';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'MindMap'>;
+
+interface EditingObject {
+  id: string;
+  type: 'module' | 'sticky' | 'task';
+}
 
 export default function MindMapScreen({ route }: { route: { params: { course: Course } } }) {
   const navigation = useNavigation<NavigationProp>();
   const insets = useSafeAreaInsets();
   const { course: routeCourse } = route.params;
-  const { courses, updateCourse, addModule, addSticky, addTask, getAllNodesForCourse, getConnectionsForCourse } = useCourseStore();
+  const { 
+    courses, 
+    updateCourse, 
+    addModule, 
+    addSticky, 
+    addTask, 
+    updateModule,
+    updateSticky,
+    updateTask,
+    deleteModule,
+    deleteSticky,
+    deleteTask,
+    getAllNodesForCourse, 
+    getConnectionsForCourse 
+  } = useCourseStore();
   
-  // Get the current course from the store to ensure we have latest data
+  // Get the current course from the store
   const course = courses.find(c => c.id === routeCourse.id) || routeCourse;
+
+  // Modal state for editing objects
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editingObject, setEditingObject] = useState<EditingObject | null>(null);
   
-  // Determine what type of object will be created next
-  const getNextCreationType = () => {
-    const hasModules = course.modules.length > 0;
-    const hasModulesWithoutStickies = course.modules.some(m => m.stickies.length === 0);
-    const hasStickiesWithoutTasks = course.modules.some(m => 
-      m.stickies.some(s => s.tasks.length === 0)
-    );
-    
-    if (!hasModules) return 'module';
-    if (hasModulesWithoutStickies) return 'sticky';
-    if (hasStickiesWithoutTasks) return 'task';
-    return 'module';
-  };
-  
-  // Debug function to clear all data
-  const clearAllData = async () => {
-    try {
-      await AsyncStorage.removeItem('course-storage');
-    } catch (error) {
-      console.log('Error clearing data:', error);
-    }
-  };
-  
-  // Initialize course position if it doesn't have one
+  // Form state
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+
+  // Initialize course position if needed
   React.useEffect(() => {
     if (!course.position || !course.size) {
       updateCourse(course.id, {
@@ -58,283 +57,208 @@ export default function MindMapScreen({ route }: { route: { params: { course: Co
       });
     }
   }, [course.id]);
-  
-  const [createModalVisible, setCreateModalVisible] = useState(false);
-  const [createType, setCreateType] = useState<'course' | 'module' | 'sticky' | 'task'>('course');
-  const [createPosition, setCreatePosition] = useState<Position>({ x: 0, y: 0 });
-  const [selectedParentIds, setSelectedParentIds] = useState<{
-    courseId?: string;
-    moduleId?: string;
-    stickyId?: string;
-  }>({});
-  const [selectionModalVisible, setSelectionModalVisible] = useState(false);
-  const [selectionOptions, setSelectionOptions] = useState<{
-    title: string;
-    message: string;
-    options: { text: string; onPress: () => void }[];
-  }>({ title: '', message: '', options: [] });
 
-  const handleCreateNode = async (type: 'course' | 'module' | 'sticky' | 'task', position: Position) => {
-    setCreateType(type);
-    setCreatePosition(position);
+  const generateId = () => Math.random().toString(36).substring(2) + Date.now().toString(36);
+
+  const handleNodeLongPress = (node: MindMapNode) => {
+    console.log('Long press detected on:', node.type, node.title);
     
-    if (type === 'course') {
-      // Course can be created directly
-      setSelectedParentIds({});
-      setCreateModalVisible(true);
-    } else {
-      // For smart creation, automatically find the best parent
-      await selectParentForNodeSmart(type);
+    // Calculate position for new object (offset from the pressed node)
+    const newPosition = {
+      x: node.position.x + node.size.width + 30,
+      y: node.position.y + (Math.random() - 0.5) * 100 // Add some vertical randomness
+    };
+
+    let newObjectId: string;
+    let newObjectType: 'module' | 'sticky' | 'task';
+
+    // Create the actual object immediately based on parent type
+    switch (node.type) {
+      case 'course':
+        newObjectType = 'module';
+        newObjectId = generateId();
+        console.log('Creating module for course:', course.id);
+        addModule(course.id, {
+          title: 'New Module',
+          description: '',
+          stickies: []
+        }, newPosition);
+        break;
+
+      case 'module':
+        newObjectType = 'sticky';
+        newObjectId = generateId();
+        console.log('Creating sticky for module:', node.id);
+        addSticky(course.id, node.id, {
+          title: 'New Sticky',
+          description: '',
+          tasks: []
+        }, newPosition);
+        break;
+
+      case 'sticky':
+        newObjectType = 'task';
+        newObjectId = generateId();
+        console.log('Creating task for sticky:', node.id);
+        // Find the module this sticky belongs to
+        const moduleForSticky = course.modules.find(m => 
+          m.stickies.some(s => s.id === node.id)
+        );
+        if (moduleForSticky) {
+          addTask(course.id, moduleForSticky.id, node.id, {
+            title: 'New Task',
+            description: '',
+            isCompleted: false
+          }, newPosition);
+        }
+        break;
+
+      default:
+        console.log('Tasks cannot create children');
+        return; // Tasks can't create children
     }
+
+    // Set up editing state
+    setEditingObject({
+      id: newObjectId,
+      type: newObjectType,
+    });
+
+    setTitle(`New ${newObjectType.charAt(0).toUpperCase() + newObjectType.slice(1)}`);
+    setDescription('');
+    setEditModalVisible(true);
   };
 
-  const selectParentForNodeSmart = async (type: 'module' | 'sticky' | 'task') => {
-    if (type === 'module') {
-      // For modules, always attach to the current course
-      setSelectedParentIds({ courseId: course.id });
-      setCreateModalVisible(true);
-    } else if (type === 'sticky') {
-      // Find the first module without stickies or the one with fewest stickies
-      if (course.modules.length === 0) {
-        showSelectionModal('No Modules', 'Please create a module first', [
-          { text: 'OK', onPress: () => setSelectionModalVisible(false) }
-        ]);
-        return;
-      }
-      
-      const targetModule = course.modules.find(m => m.stickies.length === 0) ||
-                         course.modules.reduce((prev, curr) => 
-                           prev.stickies.length <= curr.stickies.length ? prev : curr
-                         );
-      
-      setSelectedParentIds({ courseId: course.id, moduleId: targetModule.id });
-      setCreateModalVisible(true);
-    } else if (type === 'task') {
-      // Find the first sticky without tasks
-      let targetSticky = null;
-      let targetModule = null;
-      
-      for (const module of course.modules) {
-        const sticky = module.stickies.find(s => s.tasks.length === 0) ||
-                      module.stickies.reduce((prev, curr) => 
-                        prev.tasks.length <= curr.tasks.length ? prev : curr
-                      );
-        
-        if (sticky) {
-          targetSticky = sticky;
-          targetModule = module;
+  const handleSaveObject = () => {
+    if (!editingObject || !title.trim()) {
+      Alert.alert('Error', 'Please enter a title');
+      return;
+    }
+
+    try {
+      // Find the object and update it
+      const updatedTitle = title.trim();
+      const updatedDescription = description.trim();
+
+      switch (editingObject.type) {
+        case 'module':
+          updateModule(course.id, editingObject.id, {
+            title: updatedTitle,
+            description: updatedDescription
+          });
           break;
-        }
+          
+        case 'sticky':
+          // Find the module this sticky belongs to
+          const moduleForSticky = course.modules.find(m => 
+            m.stickies.some(s => s.id === editingObject.id)
+          );
+          if (moduleForSticky) {
+            updateSticky(course.id, moduleForSticky.id, editingObject.id, {
+              title: updatedTitle,
+              description: updatedDescription
+            });
+          }
+          break;
+          
+        case 'task':
+          // Find the module and sticky this task belongs to
+          let taskModuleId = '';
+          let taskStickyId = '';
+          
+          for (const module of course.modules) {
+            for (const sticky of module.stickies) {
+              if (sticky.tasks.some(t => t.id === editingObject.id)) {
+                taskModuleId = module.id;
+                taskStickyId = sticky.id;
+                break;
+              }
+            }
+          }
+          
+          if (taskModuleId && taskStickyId) {
+            updateTask(course.id, taskModuleId, taskStickyId, editingObject.id, {
+              title: updatedTitle,
+              description: updatedDescription
+            });
+          }
+          break;
       }
-      
-      if (targetSticky && targetModule) {
-        setSelectedParentIds({ 
-          courseId: course.id, 
-          moduleId: targetModule.id, 
-          stickyId: targetSticky.id 
-        });
-        setCreateModalVisible(true);
-      } else {
-        showSelectionModal('No Stickies', 'Please create a sticky first', [
-          { text: 'OK', onPress: () => setSelectionModalVisible(false) }
-        ]);
-      }
+
+      // Close modal and reset state
+      setEditModalVisible(false);
+      setEditingObject(null);
+      setTitle('');
+      setDescription('');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to save object');
     }
   };
 
-  const showSelectionModal = (title: string, message: string, options: { text: string; onPress: () => void }[]) => {
-    setSelectionOptions({ title, message, options });
-    setSelectionModalVisible(true);
+  const handleCancelEdit = () => {
+    if (!editingObject) return;
+
+    // Delete the object since we're canceling
+    try {
+      switch (editingObject.type) {
+        case 'module':
+          deleteModule(course.id, editingObject.id);
+          break;
+          
+        case 'sticky':
+          const moduleForSticky = course.modules.find(m => 
+            m.stickies.some(s => s.id === editingObject.id)
+          );
+          if (moduleForSticky) {
+            deleteSticky(course.id, moduleForSticky.id, editingObject.id);
+          }
+          break;
+          
+        case 'task':
+          let taskModuleId = '';
+          let taskStickyId = '';
+          
+          for (const module of course.modules) {
+            for (const sticky of module.stickies) {
+              if (sticky.tasks.some(t => t.id === editingObject.id)) {
+                taskModuleId = module.id;
+                taskStickyId = sticky.id;
+                break;
+              }
+            }
+          }
+          
+          if (taskModuleId && taskStickyId) {
+            deleteTask(course.id, taskModuleId, taskStickyId, editingObject.id);
+          }
+          break;
+      }
+    } catch (error) {
+      console.error('Error deleting object:', error);
+    }
+
+    setEditModalVisible(false);
+    setEditingObject(null);
+    setTitle('');
+    setDescription('');
   };
 
-  const selectParentForNode = async (type: 'module' | 'sticky' | 'task') => {
-    if (type === 'module') {
-      // For modules, always attach to the current course
-      setSelectedParentIds({ courseId: course.id });
-      setCreateModalVisible(true);
-    } else if (type === 'sticky') {
-      // Select module for sticky
-      if (course.modules.length === 0) {
-        showSelectionModal('No Modules', 'Please create a module first', [
-          { text: 'OK', onPress: () => setSelectionModalVisible(false) }
-        ]);
-        return;
-      }
-
-      const moduleOptions = course.modules.map(module => ({
-        text: module.title,
-        onPress: () => {
-          setSelectedParentIds({ courseId: course.id, moduleId: module.id });
-          setSelectionModalVisible(false);
-          setCreateModalVisible(true);
-        }
-      }));
-      
-      showSelectionModal(
-        'Select Module',
-        'Which module should this sticky belong to?',
-        [
-          { text: 'Cancel', onPress: () => setSelectionModalVisible(false) },
-          ...moduleOptions,
-        ]
-      );
-    } else if (type === 'task') {
-      // Select module and sticky for task
-      const modulesWithStickies = course.modules.filter(m => m.stickies.length > 0);
-      
-      if (modulesWithStickies.length === 0) {
-        showSelectionModal('No Stickies', 'Please create a sticky first', [
-          { text: 'OK', onPress: () => setSelectionModalVisible(false) }
-        ]);
-        return;
-      }
-
-      const moduleOptions = modulesWithStickies.map(module => ({
-        text: module.title,
-        onPress: () => {
-          setSelectionModalVisible(false);
-          selectStickyForTask(course.id, module.id);
-        }
-      }));
-      
-      showSelectionModal(
-        'Select Module',
-        'Which module should this task belong to?',
-        [
-          { text: 'Cancel', onPress: () => setSelectionModalVisible(false) },
-          ...moduleOptions,
-        ]
-      );
+  const getObjectTypeIcon = (type: string) => {
+    switch (type) {
+      case 'module': return 'library-outline';
+      case 'sticky': return 'document-text-outline';
+      case 'task': return 'checkmark-circle-outline';
+      default: return 'add-outline';
     }
   };
 
-  const selectModuleForSticky = (courseId: string) => {
-    // This function is now redundant since we're working with a single course
-    // but keeping it for compatibility with existing calls
-    const moduleOptions = course.modules.map(module => ({
-      text: module.title,
-      onPress: () => {
-        setSelectedParentIds({ courseId, moduleId: module.id });
-        setSelectionModalVisible(false);
-        setCreateModalVisible(true);
-      }
-    }));
-    
-    showSelectionModal(
-      'Select Module',
-      'Which module should this sticky belong to?',
-      [
-        { text: 'Cancel', onPress: () => setSelectionModalVisible(false) },
-        ...moduleOptions,
-      ]
-    );
-  };
-
-  const selectModuleForTask = (courseId: string) => {
-    const moduleOptions = course.modules
-      .filter(m => m.stickies.length > 0)
-      .map(module => ({
-        text: module.title,
-        onPress: () => {
-          setSelectionModalVisible(false);
-          selectStickyForTask(courseId, module.id);
-        }
-      }));
-    
-    showSelectionModal(
-      'Select Module',
-      'Which module should this task belong to?',
-      [
-        { text: 'Cancel', onPress: () => setSelectionModalVisible(false) },
-        ...moduleOptions,
-      ]
-    );
-  };
-
-  const selectStickyForTask = (courseId: string, moduleId: string) => {
-    const module = course.modules.find(m => m.id === moduleId);
-    if (!module) return;
-    
-    const stickyOptions = module.stickies.map(sticky => ({
-      text: sticky.title,
-      onPress: () => {
-        setSelectedParentIds({ courseId, moduleId, stickyId: sticky.id });
-        setSelectionModalVisible(false);
-        setCreateModalVisible(true);
-      }
-    }));
-    
-    showSelectionModal(
-      'Select Sticky',
-      'Which sticky should this task belong to?',
-      [
-        { text: 'Cancel', onPress: () => setSelectionModalVisible(false) },
-        ...stickyOptions,
-      ]
-    );
-  };
-
-  const handleNodePress = (node: MindMapNode) => {
-    // Handle node selection/editing
-    showSelectionModal(
-      node.title,
-      `Type: ${node.type}\nClick to edit or view details`,
-      [
-        { text: 'Cancel', onPress: () => setSelectionModalVisible(false) },
-        { text: 'View Details', onPress: () => {
-          setSelectionModalVisible(false);
-          navigateToNodeDetail(node);
-        }},
-      ]
-    );
-  };
-
-  const navigateToNodeDetail = (node: MindMapNode) => {
-    // Navigate to appropriate detail screen based on node type
-    if (node.type === 'course') {
-      navigation.navigate('CourseDetail', { course });
-    } else if (node.type === 'module') {
-      const module = course.modules.find(m => m.id === node.id);
-      if (module) {
-        navigation.navigate('ModuleDetail', { course, module });
-      }
-    } else if (node.type === 'sticky') {
-      // Find the module and sticky
-      for (const module of course.modules) {
-        const sticky = module.stickies.find(s => s.id === node.id);
-        if (sticky) {
-          navigation.navigate('StickyDetail', { course, module, sticky });
-          return;
-        }
-      }
+  const getObjectTypeColor = (type: string) => {
+    switch (type) {
+      case 'module': return '#10B981';
+      case 'sticky': return '#F59E0B';
+      case 'task': return '#8B5CF6';
+      default: return '#6B7280';
     }
-    // Tasks don't have detail screens yet
-  };
-
-  const closeModal = () => {
-    setCreateModalVisible(false);
-    setSelectedParentIds({});
-  };
-
-  const renderCreateModal = () => {
-    // We'll use the existing create screens, but they'll need to handle custom positioning
-    // For now, we'll just close the modal and let the regular creation flow work
-    return (
-      <View className="flex-1 items-center justify-center bg-white">
-        <Text className="text-lg font-semibold text-gray-900 mb-4">
-          Create {createType.charAt(0).toUpperCase() + createType.slice(1)}
-        </Text>
-        <Text className="text-gray-600 mb-6 text-center px-8">
-          Use the + button in the top right to create new items, or navigate to the detailed screens for advanced creation.
-        </Text>
-        <Pressable
-          onPress={closeModal}
-          className="bg-blue-500 px-6 py-3 rounded-lg"
-        >
-          <Text className="text-white font-semibold">Close</Text>
-        </Pressable>
-      </View>
-    );
   };
 
   return (
@@ -350,13 +274,10 @@ export default function MindMapScreen({ route }: { route: { params: { course: Co
               {course.title}
             </Text>
             <Text className="text-gray-600 text-sm mt-1">
-              Drag nodes to organize • Long press to create • Pinch to zoom
+              Long press objects to create children • Drag to organize
             </Text>
             <Text className="text-gray-500 text-xs mt-1">
-              {getAllNodesForCourse(course.id).length} nodes • {getConnectionsForCourse(course.id).length} connections • Next: {getNextCreationType()}
-            </Text>
-            <Text className="text-gray-400 text-xs mt-1">
-              Course: {course.modules.length} modules • Pos: {course.position ? `${Math.round(course.position.x)},${Math.round(course.position.y)}` : 'none'}
+              {getAllNodesForCourse(course.id).length} nodes • {getConnectionsForCourse(course.id).length} connections
             </Text>
           </View>
           
@@ -365,60 +286,110 @@ export default function MindMapScreen({ route }: { route: { params: { course: Co
             className="bg-gray-100 px-4 py-2 rounded-lg flex-row items-center"
           >
             <Ionicons name="arrow-back-outline" size={16} color="#374151" />
-            <Text className="text-gray-700 font-medium ml-2">Back to Courses</Text>
+            <Text className="text-gray-700 font-medium ml-2">Back</Text>
           </Pressable>
         </View>
       </View>
 
-      {/* Mind Map Canvas */}
+      {/* Mind Map Canvas - ONLY pass onNodeLongPress, no onNodePress */}
       <MindMapCanvas
-        onCreateNode={handleCreateNode}
-        onNodePress={handleNodePress}
-        nextCreationType={getNextCreationType()}
+        onNodeLongPress={handleNodeLongPress}
         courseId={course.id}
+        editingObjectId={editingObject?.id}
       />
 
-      {/* Create Modal */}
+      {/* Edit Object Modal */}
       <Modal
-        visible={createModalVisible}
+        visible={editModalVisible}
         animationType="slide"
         presentationStyle="pageSheet"
-        onRequestClose={() => setCreateModalVisible(false)}
+        onRequestClose={handleCancelEdit}
       >
-        <View className="flex-1">
-          {renderCreateModal()}
-        </View>
-      </Modal>
-
-      {/* Selection Modal */}
-      <Modal
-        visible={selectionModalVisible}
-        animationType="fade"
-        transparent={true}
-        onRequestClose={() => setSelectionModalVisible(false)}
-      >
-        <View className="flex-1 justify-center items-center bg-black/50">
-          <View className="bg-white rounded-xl p-6 m-6 max-w-sm w-full">
-            <Text className="text-xl font-bold text-gray-900 mb-2">
-              {selectionOptions.title}
-            </Text>
-            <Text className="text-gray-600 mb-6">
-              {selectionOptions.message}
-            </Text>
-            <ScrollView className="max-h-60">
-              {selectionOptions.options.map((option, index) => (
+        <View className="flex-1 bg-white">
+          {/* Modal Header */}
+          <View className="border-b border-gray-200 px-4 py-4">
+            <View className="flex-row items-center justify-between">
+              <Text className="text-xl font-bold text-gray-900">
+                Edit {editingObject?.type}
+              </Text>
+              <View className="flex-row space-x-3">
                 <Pressable
-                  key={index}
-                  onPress={option.onPress}
-                  className="py-3 px-4 bg-gray-50 rounded-lg mb-2 last:mb-0"
+                  onPress={handleCancelEdit}
+                  className="px-4 py-2 rounded-lg bg-gray-100"
                 >
-                  <Text className="text-gray-900 font-medium text-center">
-                    {option.text}
-                  </Text>
+                  <Text className="text-gray-700 font-medium">Cancel</Text>
                 </Pressable>
-              ))}
-            </ScrollView>
+                <Pressable
+                  onPress={handleSaveObject}
+                  className="px-4 py-2 rounded-lg bg-blue-500"
+                >
+                  <Text className="text-white font-medium">Save</Text>
+                </Pressable>
+              </View>
+            </View>
           </View>
+
+          {/* Form */}
+          <ScrollView className="flex-1 px-4 py-6">
+            <View className="space-y-6">
+              {/* Type indicator */}
+              <View className="flex-row items-center justify-center p-4 bg-gray-50 rounded-xl">
+                <View 
+                  className="w-12 h-12 rounded-full items-center justify-center mr-3"
+                  style={{ backgroundColor: getObjectTypeColor(editingObject?.type || '') }}
+                >
+                  <Ionicons 
+                    name={getObjectTypeIcon(editingObject?.type || '') as any} 
+                    size={24} 
+                    color="white" 
+                  />
+                </View>
+                <Text className="text-lg font-semibold text-gray-900 capitalize">
+                  {editingObject?.type}
+                </Text>
+              </View>
+
+              {/* Title Input */}
+              <View>
+                <Text className="text-sm font-medium text-gray-700 mb-2">
+                  Title *
+                </Text>
+                <TextInput
+                  value={title}
+                  onChangeText={setTitle}
+                  placeholder={`Enter ${editingObject?.type} title...`}
+                  className="border border-gray-300 rounded-lg px-3 py-3 text-base"
+                  autoFocus={true}
+                  selectTextOnFocus={true}
+                  returnKeyType="next"
+                />
+              </View>
+
+              {/* Description Input */}
+              <View>
+                <Text className="text-sm font-medium text-gray-700 mb-2">
+                  Description
+                </Text>
+                <TextInput
+                  value={description}
+                  onChangeText={setDescription}
+                  placeholder={`Describe this ${editingObject?.type}...`}
+                  className="border border-gray-300 rounded-lg px-3 py-3 text-base"
+                  multiline={true}
+                  numberOfLines={4}
+                  textAlignVertical="top"
+                />
+              </View>
+
+              {/* Help Text */}
+              <View className="bg-green-50 p-4 rounded-lg">
+                <Text className="text-green-800 text-sm">
+                  ✅ The {editingObject?.type} is already created and visible on the mind map. 
+                  You can drag it to reposition while editing.
+                </Text>
+              </View>
+            </View>
+          </ScrollView>
         </View>
       </Modal>
     </View>
