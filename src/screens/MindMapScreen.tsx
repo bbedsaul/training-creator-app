@@ -58,8 +58,6 @@ export default function MindMapScreen({ route }: { route: { params: { course: Co
     }
   }, [course.id]);
 
-  const generateId = () => Math.random().toString(36).substring(2) + Date.now().toString(36);
-
   const handleNodeLongPress = (node: MindMapNode) => {
     console.log('Long press detected on:', node.type, node.title);
     
@@ -69,14 +67,12 @@ export default function MindMapScreen({ route }: { route: { params: { course: Co
       y: node.position.y + (Math.random() - 0.5) * 100 // Add some vertical randomness
     };
 
-    let newObjectId: string;
     let newObjectType: 'module' | 'sticky' | 'task';
 
     // Create the actual object immediately based on parent type
     switch (node.type) {
       case 'course':
         newObjectType = 'module';
-        newObjectId = generateId();
         console.log('Creating module for course:', course.id);
         addModule(course.id, {
           title: 'New Module',
@@ -87,7 +83,6 @@ export default function MindMapScreen({ route }: { route: { params: { course: Co
 
       case 'module':
         newObjectType = 'sticky';
-        newObjectId = generateId();
         console.log('Creating sticky for module:', node.id);
         addSticky(course.id, node.id, {
           title: 'New Sticky',
@@ -98,7 +93,6 @@ export default function MindMapScreen({ route }: { route: { params: { course: Co
 
       case 'sticky':
         newObjectType = 'task';
-        newObjectId = generateId();
         console.log('Creating task for sticky:', node.id);
         // Find the module this sticky belongs to
         const moduleForSticky = course.modules.find(m => 
@@ -118,15 +112,57 @@ export default function MindMapScreen({ route }: { route: { params: { course: Co
         return; // Tasks can't create children
     }
 
-    // Set up editing state
-    setEditingObject({
-      id: newObjectId,
-      type: newObjectType,
-    });
+    // Wait a moment for the object to be created, then find it and set up editing
+    setTimeout(() => {
+      const updatedCourse = courses.find(c => c.id === course.id);
+      if (!updatedCourse) return;
 
-    setTitle(`New ${newObjectType.charAt(0).toUpperCase() + newObjectType.slice(1)}`);
-    setDescription('');
-    setEditModalVisible(true);
+      let newObjectId = '';
+
+      // Find the newly created object
+      switch (newObjectType) {
+        case 'module':
+          const newestModule = updatedCourse.modules[updatedCourse.modules.length - 1];
+          if (newestModule) newObjectId = newestModule.id;
+          break;
+          
+        case 'sticky':
+          const targetModule = updatedCourse.modules.find(m => m.id === node.id);
+          if (targetModule) {
+            const newestSticky = targetModule.stickies[targetModule.stickies.length - 1];
+            if (newestSticky) newObjectId = newestSticky.id;
+          }
+          break;
+          
+        case 'task':
+          const moduleForSticky = updatedCourse.modules.find(m => 
+            m.stickies.some(s => s.id === node.id)
+          );
+          if (moduleForSticky) {
+            const targetSticky = moduleForSticky.stickies.find(s => s.id === node.id);
+            if (targetSticky) {
+              const newestTask = targetSticky.tasks[targetSticky.tasks.length - 1];
+              if (newestTask) newObjectId = newestTask.id;
+            }
+          }
+          break;
+      }
+
+      if (newObjectId) {
+        console.log('Found newly created object with ID:', newObjectId);
+        // Set up editing state
+        setEditingObject({
+          id: newObjectId,
+          type: newObjectType,
+        });
+
+        setTitle(`New ${newObjectType.charAt(0).toUpperCase() + newObjectType.slice(1)}`);
+        setDescription('');
+        setEditModalVisible(true);
+      } else {
+        console.error('Could not find newly created object');
+      }
+    }, 100); // Small delay to ensure state update
   };
 
   const handleSaveObject = () => {

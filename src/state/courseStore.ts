@@ -575,12 +575,18 @@ export const useCourseStore = create<CourseStore>()(
       getAllNodesForCourse: (courseId: string) => {
         const state = get();
         const course = state.courses.find(c => c.id === courseId);
-        if (!course) return [];
+        if (!course) {
+          console.log('Course not found:', courseId);
+          return [];
+        }
 
         const nodes: MindMapNode[] = [];
         
         // Ensure course has position and size
-        if (!course.position || !course.size) return [];
+        if (!course.position || !course.size) {
+          console.log('Course missing position/size:', course.position, course.size);
+          return [];
+        }
         
         nodes.push({
           id: course.id,
@@ -592,10 +598,17 @@ export const useCourseStore = create<CourseStore>()(
           isCollapsed: course.isCollapsed || false,
         });
         
+        console.log('Course modules:', course.modules.length);
+        
         if (!course.isCollapsed) {
-          course.modules.forEach(module => {
+          course.modules.forEach((module, moduleIndex) => {
+            console.log(`Module ${moduleIndex}:`, module.title, 'Position:', module.position, 'Size:', module.size);
+            
             // Ensure module has position and size
-            if (!module.position || !module.size) return;
+            if (!module.position || !module.size) {
+              console.log('Module missing position/size, skipping:', module.title);
+              return;
+            }
             
             nodes.push({
               id: module.id,
@@ -608,10 +621,17 @@ export const useCourseStore = create<CourseStore>()(
               isCollapsed: module.isCollapsed || false,
             });
             
+            console.log('Module stickies:', module.stickies.length);
+            
             if (!module.isCollapsed) {
-              module.stickies.forEach(sticky => {
+              module.stickies.forEach((sticky, stickyIndex) => {
+                console.log(`Sticky ${stickyIndex}:`, sticky.title, 'Position:', sticky.position, 'Size:', sticky.size);
+                
                 // Ensure sticky has position and size
-                if (!sticky.position || !sticky.size) return;
+                if (!sticky.position || !sticky.size) {
+                  console.log('Sticky missing position/size, skipping:', sticky.title);
+                  return;
+                }
                 
                 nodes.push({
                   id: sticky.id,
@@ -625,9 +645,14 @@ export const useCourseStore = create<CourseStore>()(
                 });
                 
                 if (!sticky.isCollapsed) {
-                  sticky.tasks.forEach(task => {
+                  sticky.tasks.forEach((task, taskIndex) => {
+                    console.log(`Task ${taskIndex}:`, task.title, 'Position:', task.position, 'Size:', task.size);
+                    
                     // Ensure task has position and size
-                    if (!task.position || !task.size) return;
+                    if (!task.position || !task.size) {
+                      console.log('Task missing position/size, skipping:', task.title);
+                      return;
+                    }
                     
                     nodes.push({
                       id: task.id,
@@ -646,6 +671,7 @@ export const useCourseStore = create<CourseStore>()(
           });
         }
         
+        console.log('Total nodes found:', nodes.length);
         return nodes;
       },
 
