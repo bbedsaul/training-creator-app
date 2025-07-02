@@ -43,6 +43,7 @@ export default function MindMapScreen({ route }: { route: { params: { course: Co
   // Modal state for editing objects
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editingObject, setEditingObject] = useState<EditingObject | null>(null);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   
   // Form state
   const [title, setTitle] = useState('');
@@ -60,14 +61,23 @@ export default function MindMapScreen({ route }: { route: { params: { course: Co
   }, [course.id]);
 
   const handleNodePress = (node: MindMapNode) => {
-    console.log('Short press detected on:', node.type, node.title, '- opening for edit');
-    
-    // Open edit modal for the existing object
-    setEditingObject({
-      id: node.id,
-      type: node.type as 'course' | 'module' | 'sticky' | 'task',
-      isNew: false, // This is an existing object
-    });
+    if (selectedNodeId === node.id) {
+      // Already selected - open for edit
+      console.log('Double press on selected node:', node.type, node.title, '- opening for edit');
+      
+      setEditingObject({
+        id: node.id,
+        type: node.type as 'course' | 'module' | 'sticky' | 'task',
+        isNew: false,
+      });
+    } else {
+      // Not selected - select it
+      console.log('Selecting node:', node.type, node.title);
+      setSelectedNodeId(node.id);
+      return; // Don't open edit modal yet
+    }
+
+    // Only open edit modal if we're editing
 
     // Find and set current values based on node type
     const course = courses.find(c => c.id === routeCourse.id) || routeCourse;
@@ -120,6 +130,69 @@ export default function MindMapScreen({ route }: { route: { params: { course: Co
     }
     
     setEditModalVisible(true);
+  };
+
+  const handleNodeDelete = (node: MindMapNode) => {
+    Alert.alert(
+      `Delete ${node.type}`,
+      `Are you sure you want to delete "${node.title}"? This action cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Delete', 
+          style: 'destructive',
+          onPress: () => confirmDeleteNode(node)
+        }
+      ]
+    );
+  };
+
+  const confirmDeleteNode = (node: MindMapNode) => {
+    try {
+      switch (node.type) {
+        case 'course':
+          // Don't allow deleting the course from within the mind map
+          Alert.alert('Cannot Delete', 'Use the course list to delete courses.');
+          break;
+          
+        case 'module':
+          deleteModule(course.id, node.id);
+          break;
+          
+        case 'sticky':
+          const moduleForSticky = course.modules.find(m => 
+            m.stickies.some(s => s.id === node.id)
+          );
+          if (moduleForSticky) {
+            deleteSticky(course.id, moduleForSticky.id, node.id);
+          }
+          break;
+          
+        case 'task':
+          let taskModuleId = '';
+          let taskStickyId = '';
+          
+          for (const module of course.modules) {
+            for (const sticky of module.stickies) {
+              if (sticky.tasks.some(t => t.id === node.id)) {
+                taskModuleId = module.id;
+                taskStickyId = sticky.id;
+                break;
+              }
+            }
+          }
+          
+          if (taskModuleId && taskStickyId) {
+            deleteTask(course.id, taskModuleId, taskStickyId, node.id);
+          }
+          break;
+      }
+      
+      // Clear selection after delete
+      setSelectedNodeId(null);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to delete object');
+    }
   };
 
   const handleNodeLongPress = (node: MindMapNode) => {
@@ -379,7 +452,7 @@ export default function MindMapScreen({ route }: { route: { params: { course: Co
               {course.title}
             </Text>
             <Text className="text-gray-600 text-sm mt-1">
-              Tap to edit • Long press to create children • Drag to organize
+              Tap to select • Tap selected to edit • Long press to create children
             </Text>
             <Text className="text-gray-500 text-xs mt-1">
               {getAllNodesForCourse(course.id).length} nodes • {getConnectionsForCourse(course.id).length} connections
@@ -400,8 +473,11 @@ export default function MindMapScreen({ route }: { route: { params: { course: Co
       <MindMapCanvas
         onNodeLongPress={handleNodeLongPress}
         onNodePress={handleNodePress}
+        onNodeDelete={handleNodeDelete}
+        onClearSelection={() => setSelectedNodeId(null)}
         courseId={course.id}
         editingObjectId={editingObject?.id}
+        selectedNodeId={selectedNodeId}
       />
 
       {/* Edit Object Modal */}

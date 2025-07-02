@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, Pressable } from 'react-native';
 import Animated, { 
   useSharedValue, 
   useAnimatedStyle, 
@@ -16,8 +16,10 @@ interface DraggableNodeProps {
   onPositionChange: (nodeId: string, x: number, y: number) => void;
   onLongPress: (node: MindMapNode) => void;
   onPress: (node: MindMapNode) => void;
+  onDelete?: (node: MindMapNode) => void;
   scale: number;
   isBeingEdited?: boolean;
+  isSelected?: boolean;
 }
 
 const DraggableNode: React.FC<DraggableNodeProps> = ({
@@ -25,8 +27,10 @@ const DraggableNode: React.FC<DraggableNodeProps> = ({
   onPositionChange,
   onLongPress,
   onPress,
+  onDelete,
   scale,
   isBeingEdited = false,
+  isSelected = false,
 }) => {
   const translateX = useSharedValue(node.position.x);
   const translateY = useSharedValue(node.position.y);
@@ -67,11 +71,16 @@ const DraggableNode: React.FC<DraggableNodeProps> = ({
       runOnJS(onPositionChange)(node.id, translateX.value, translateY.value);
     });
 
-  // Tap gesture for editing existing objects
+  // Tap gesture for selecting nodes (or editing if not selected)
   const tapGesture = Gesture.Tap()
     .onStart(() => {
-      console.log('Tap detected on:', node.title, '- opening edit');
-      runOnJS(onPress)(node);
+      if (isSelected) {
+        console.log('Tap on selected node:', node.title, '- opening edit');
+        runOnJS(onPress)(node);
+      } else {
+        console.log('Tap detected on:', node.title, '- selecting');
+        runOnJS(onPress)(node);
+      }
     });
 
   // Long press gesture for creating children
@@ -122,12 +131,12 @@ const DraggableNode: React.FC<DraggableNodeProps> = ({
       height: node.size.height,
       borderRadius: node.type === 'task' ? node.size.height / 2 : 12,
       backgroundColor: node.color,
-      borderWidth: isBeingEdited ? 3 : 2,
-      borderColor: isBeingEdited ? '#3B82F6' : 'white',
-      shadowColor: isBeingEdited ? '#3B82F6' : '#000',
-      shadowOffset: isBeingEdited ? { width: 0, height: 0 } : { width: 0, height: 2 },
-      shadowOpacity: isBeingEdited ? 0.3 : 0.1,
-      shadowRadius: isBeingEdited ? 8 : 4,
+      borderWidth: isBeingEdited ? 3 : isSelected ? 3 : 2,
+      borderColor: isBeingEdited ? '#3B82F6' : isSelected ? '#F59E0B' : 'white',
+      shadowColor: isBeingEdited ? '#3B82F6' : isSelected ? '#F59E0B' : '#000',
+      shadowOffset: isBeingEdited || isSelected ? { width: 0, height: 0 } : { width: 0, height: 2 },
+      shadowOpacity: isBeingEdited || isSelected ? 0.4 : 0.1,
+      shadowRadius: isBeingEdited || isSelected ? 8 : 4,
     };
   };
 
@@ -205,6 +214,17 @@ const DraggableNode: React.FC<DraggableNodeProps> = ({
               <View className="absolute -top-2 -right-2 bg-blue-500 w-6 h-6 rounded-full items-center justify-center">
                 <Ionicons name="create" size={12} color="white" />
               </View>
+            )}
+
+            {/* Delete button when selected */}
+            {isSelected && onDelete && node.type !== 'course' && (
+              <Pressable
+                onPress={() => onDelete(node)}
+                className="absolute -top-2 -left-2 bg-red-500 w-6 h-6 rounded-full items-center justify-center"
+                style={{ zIndex: 1000 }}
+              >
+                <Ionicons name="close" size={12} color="white" />
+              </Pressable>
             )}
           </View>
         </View>

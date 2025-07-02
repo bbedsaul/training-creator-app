@@ -18,15 +18,21 @@ const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 interface MindMapCanvasProps {
   onNodeLongPress: (node: MindMapNode) => void;
   onNodePress: (node: MindMapNode) => void;
+  onNodeDelete?: (node: MindMapNode) => void;
+  onClearSelection?: () => void;
   courseId: string;
   editingObjectId?: string;
+  selectedNodeId?: string;
 }
 
 const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
   onNodeLongPress,
   onNodePress,
+  onNodeDelete,
+  onClearSelection,
   courseId,
   editingObjectId,
+  selectedNodeId,
 }) => {
   const { 
     getAllNodesForCourse,
@@ -177,7 +183,7 @@ const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
       <View className="absolute bottom-12 left-4 right-4 z-50">
         <View className="bg-black/70 px-4 py-2 rounded-lg">
           <Text className="text-white text-sm text-center">
-            Tap: Edit • Long press: Create (Course→Module→Sticky→Task)
+            Tap: Select • Long press: Create • Selected: Red X to delete
           </Text>
         </View>
       </View>
@@ -195,6 +201,13 @@ const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
           <Pressable
             className="flex-1"
             style={{ width: canvasSize.width, height: canvasSize.height }}
+            onPress={() => {
+              // Clear selection when tapping on empty canvas
+              if (selectedNodeId && onClearSelection) {
+                console.log('Clearing selection');
+                onClearSelection();
+              }
+            }}
           >
             <Animated.View style={[animatedCanvasStyle, { flex: 1 }]}>
               {/* Connection Lines */}
@@ -204,7 +217,7 @@ const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
                 canvasHeight={canvasSize.height}
               />
 
-              {/* Draggable Nodes - onPress for edit, onLongPress for create */}
+              {/* Draggable Nodes - tap to select, long press to create */}
               {nodes.map((node) => (
                 <DraggableNode
                   key={node.id}
@@ -212,8 +225,10 @@ const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
                   onPositionChange={handleNodePositionChange}
                   onLongPress={onNodeLongPress}
                   onPress={onNodePress}
+                  onDelete={onNodeDelete}
                   scale={canvasScale}
                   isBeingEdited={node.id === editingObjectId}
+                  isSelected={node.id === selectedNodeId}
                 />
               ))}
             </Animated.View>
