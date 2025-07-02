@@ -65,6 +65,18 @@ const DraggableNode: React.FC<DraggableNodeProps> = ({
       runOnJS(onPositionChange)(node.id, translateX.value, translateY.value);
     });
 
+  // Add explicit tap gesture to catch and ignore taps
+  const tapGesture = Gesture.Tap()
+    .onBegin(() => {
+      console.log('Tap BEGIN on:', node.title);
+    })
+    .onStart(() => {
+      console.log('Tap START on:', node.title, '- doing nothing');
+    })
+    .onEnd(() => {
+      console.log('Tap END on:', node.title, '- doing nothing');
+    });
+
   // Long press gesture for creating children
   const longPressGesture = Gesture.LongPress()
     .minDuration(600) // 600ms long press
@@ -77,8 +89,8 @@ const DraggableNode: React.FC<DraggableNodeProps> = ({
       }
     });
 
-  // Combine gestures - long press should work alongside pan
-  const composedGestures = Gesture.Race(longPressGesture, panGesture);
+  // Combine gestures in priority order: long press > pan > tap
+  const composedGestures = Gesture.Exclusive(longPressGesture, panGesture, tapGesture);
 
   const animatedStyle = useAnimatedStyle(() => {
     return {
