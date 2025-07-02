@@ -17,12 +17,14 @@ const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 interface MindMapCanvasProps {
   onNodeLongPress: (node: MindMapNode) => void;
+  onNodePress: (node: MindMapNode) => void;
   courseId: string;
   editingObjectId?: string;
 }
 
 const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
   onNodeLongPress,
+  onNodePress,
   courseId,
   editingObjectId,
 }) => {
@@ -175,7 +177,7 @@ const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
       <View className="absolute bottom-12 left-4 right-4 z-50">
         <View className="bg-black/70 px-4 py-2 rounded-lg">
           <Text className="text-white text-sm text-center">
-            Long press: Course→Module, Module→Sticky, Sticky→Task
+            Tap: Edit • Long press: Create (Course→Module→Sticky→Task)
           </Text>
         </View>
       </View>
@@ -202,13 +204,14 @@ const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
                 canvasHeight={canvasSize.height}
               />
 
-              {/* Draggable Nodes - ONLY onLongPress, NO onPress */}
+              {/* Draggable Nodes - onPress for edit, onLongPress for create */}
               {nodes.map((node) => (
                 <DraggableNode
                   key={node.id}
                   node={node}
                   onPositionChange={handleNodePositionChange}
                   onLongPress={onNodeLongPress}
+                  onPress={onNodePress}
                   scale={canvasScale}
                   isBeingEdited={node.id === editingObjectId}
                 />

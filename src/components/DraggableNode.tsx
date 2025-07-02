@@ -15,6 +15,7 @@ interface DraggableNodeProps {
   node: MindMapNode;
   onPositionChange: (nodeId: string, x: number, y: number) => void;
   onLongPress: (node: MindMapNode) => void;
+  onPress: (node: MindMapNode) => void;
   scale: number;
   isBeingEdited?: boolean;
 }
@@ -23,6 +24,7 @@ const DraggableNode: React.FC<DraggableNodeProps> = ({
   node,
   onPositionChange,
   onLongPress,
+  onPress,
   scale,
   isBeingEdited = false,
 }) => {
@@ -65,16 +67,11 @@ const DraggableNode: React.FC<DraggableNodeProps> = ({
       runOnJS(onPositionChange)(node.id, translateX.value, translateY.value);
     });
 
-  // Add explicit tap gesture to catch and ignore taps
+  // Tap gesture for editing existing objects
   const tapGesture = Gesture.Tap()
-    .onBegin(() => {
-      console.log('Tap BEGIN on:', node.title);
-    })
     .onStart(() => {
-      console.log('Tap START on:', node.title, '- doing nothing');
-    })
-    .onEnd(() => {
-      console.log('Tap END on:', node.title, '- doing nothing');
+      console.log('Tap detected on:', node.title, '- opening edit');
+      runOnJS(onPress)(node);
     });
 
   // Long press gesture for creating children

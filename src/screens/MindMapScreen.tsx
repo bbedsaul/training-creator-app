@@ -13,7 +13,8 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'MindMap'>;
 
 interface EditingObject {
   id: string;
-  type: 'module' | 'sticky' | 'task';
+  type: 'course' | 'module' | 'sticky' | 'task';
+  isNew?: boolean; // Track if this is a newly created object
 }
 
 export default function MindMapScreen({ route }: { route: { params: { course: Course } } }) {
@@ -57,6 +58,69 @@ export default function MindMapScreen({ route }: { route: { params: { course: Co
       });
     }
   }, [course.id]);
+
+  const handleNodePress = (node: MindMapNode) => {
+    console.log('Short press detected on:', node.type, node.title, '- opening for edit');
+    
+    // Open edit modal for the existing object
+    setEditingObject({
+      id: node.id,
+      type: node.type as 'course' | 'module' | 'sticky' | 'task',
+      isNew: false, // This is an existing object
+    });
+
+    // Find and set current values based on node type
+    const course = courses.find(c => c.id === routeCourse.id) || routeCourse;
+    
+    switch (node.type) {
+      case 'course':
+        setTitle(course.title);
+        setDescription(course.description || '');
+        break;
+        
+      case 'module':
+        const module = course.modules.find(m => m.id === node.id);
+        if (module) {
+          setTitle(module.title);
+          setDescription(module.description || '');
+        }
+        break;
+        
+      case 'sticky':
+        let foundSticky = null;
+        for (const mod of course.modules) {
+          const sticky = mod.stickies.find(s => s.id === node.id);
+          if (sticky) {
+            foundSticky = sticky;
+            break;
+          }
+        }
+        if (foundSticky) {
+          setTitle(foundSticky.title);
+          setDescription(foundSticky.description || '');
+        }
+        break;
+        
+      case 'task':
+        let foundTask = null;
+        for (const mod of course.modules) {
+          for (const sticky of mod.stickies) {
+            const task = sticky.tasks.find(t => t.id === node.id);
+            if (task) {
+              foundTask = task;
+              break;
+            }
+          }
+        }
+        if (foundTask) {
+          setTitle(foundTask.title);
+          setDescription(foundTask.description || '');
+        }
+        break;
+    }
+    
+    setEditModalVisible(true);
+  };
 
   const handleNodeLongPress = (node: MindMapNode) => {
     console.log('Long press detected on:', node.type, node.title);
@@ -149,6 +213,7 @@ export default function MindMapScreen({ route }: { route: { params: { course: Co
         setEditingObject({
           id: newObjectId,
           type: newObjectType,
+          isNew: true, // This is a newly created object
         });
 
         setTitle(`New ${newObjectType.charAt(0).toUpperCase() + newObjectType.slice(1)}`);
@@ -172,6 +237,13 @@ export default function MindMapScreen({ route }: { route: { params: { course: Co
       const updatedDescription = description.trim();
 
       switch (editingObject.type) {
+        case 'course':
+          updateCourse(editingObject.id, {
+            title: updatedTitle,
+            description: updatedDescription
+          });
+          break;
+          
         case 'module':
           updateModule(course.id, editingObject.id, {
             title: updatedTitle,
@@ -229,43 +301,45 @@ export default function MindMapScreen({ route }: { route: { params: { course: Co
   const handleCancelEdit = () => {
     if (!editingObject) return;
 
-    // Delete the object since we're canceling
-    try {
-      switch (editingObject.type) {
-        case 'module':
-          deleteModule(course.id, editingObject.id);
-          break;
-          
-        case 'sticky':
-          const moduleForSticky = course.modules.find(m => 
-            m.stickies.some(s => s.id === editingObject.id)
-          );
-          if (moduleForSticky) {
-            deleteSticky(course.id, moduleForSticky.id, editingObject.id);
-          }
-          break;
-          
-        case 'task':
-          let taskModuleId = '';
-          let taskStickyId = '';
-          
-          for (const module of course.modules) {
-            for (const sticky of module.stickies) {
-              if (sticky.tasks.some(t => t.id === editingObject.id)) {
-                taskModuleId = module.id;
-                taskStickyId = sticky.id;
-                break;
+    // Only delete the object if it's newly created (not when editing existing objects)
+    if (editingObject.isNew) {
+      try {
+        switch (editingObject.type) {
+          case 'module':
+            deleteModule(course.id, editingObject.id);
+            break;
+            
+          case 'sticky':
+            const moduleForSticky = course.modules.find(m => 
+              m.stickies.some(s => s.id === editingObject.id)
+            );
+            if (moduleForSticky) {
+              deleteSticky(course.id, moduleForSticky.id, editingObject.id);
+            }
+            break;
+            
+          case 'task':
+            let taskModuleId = '';
+            let taskStickyId = '';
+            
+            for (const module of course.modules) {
+              for (const sticky of module.stickies) {
+                if (sticky.tasks.some(t => t.id === editingObject.id)) {
+                  taskModuleId = module.id;
+                  taskStickyId = sticky.id;
+                  break;
+                }
               }
             }
-          }
-          
-          if (taskModuleId && taskStickyId) {
-            deleteTask(course.id, taskModuleId, taskStickyId, editingObject.id);
-          }
-          break;
+            
+            if (taskModuleId && taskStickyId) {
+              deleteTask(course.id, taskModuleId, taskStickyId, editingObject.id);
+            }
+            break;
+        }
+      } catch (error) {
+        console.error('Error deleting newly created object:', error);
       }
-    } catch (error) {
-      console.error('Error deleting object:', error);
     }
 
     setEditModalVisible(false);
@@ -305,7 +379,7 @@ export default function MindMapScreen({ route }: { route: { params: { course: Co
               {course.title}
             </Text>
             <Text className="text-gray-600 text-sm mt-1">
-              Long press objects to create children • Drag to organize
+              Tap to edit • Long press to create children • Drag to organize
             </Text>
             <Text className="text-gray-500 text-xs mt-1">
               {getAllNodesForCourse(course.id).length} nodes • {getConnectionsForCourse(course.id).length} connections
@@ -322,9 +396,10 @@ export default function MindMapScreen({ route }: { route: { params: { course: Co
         </View>
       </View>
 
-      {/* Mind Map Canvas - ONLY pass onNodeLongPress, no onNodePress */}
+      {/* Mind Map Canvas - onPress for edit, onLongPress for create */}
       <MindMapCanvas
         onNodeLongPress={handleNodeLongPress}
+        onNodePress={handleNodePress}
         courseId={course.id}
         editingObjectId={editingObject?.id}
       />
@@ -341,7 +416,7 @@ export default function MindMapScreen({ route }: { route: { params: { course: Co
           <View className="border-b border-gray-200 px-4 py-4">
             <View className="flex-row items-center justify-between">
               <Text className="text-xl font-bold text-gray-900">
-                Edit {editingObject?.type}
+                {editingObject?.isNew ? 'Create' : 'Edit'} {editingObject?.type}
               </Text>
               <View className="flex-row space-x-3">
                 <Pressable
@@ -413,10 +488,12 @@ export default function MindMapScreen({ route }: { route: { params: { course: Co
               </View>
 
               {/* Help Text */}
-              <View className="bg-green-50 p-4 rounded-lg">
-                <Text className="text-green-800 text-sm">
-                  ✅ The {editingObject?.type} is already created and visible on the mind map. 
-                  You can drag it to reposition while editing.
+              <View className={`p-4 rounded-lg ${editingObject?.isNew ? 'bg-blue-50' : 'bg-green-50'}`}>
+                <Text className={`text-sm ${editingObject?.isNew ? 'text-blue-800' : 'text-green-800'}`}>
+                  {editingObject?.isNew 
+                    ? `🆕 Creating a new ${editingObject?.type}. You can drag it to reposition while editing.`
+                    : `✏️ Editing existing ${editingObject?.type}. You can drag it to reposition while editing.`
+                  }
                 </Text>
               </View>
             </View>
