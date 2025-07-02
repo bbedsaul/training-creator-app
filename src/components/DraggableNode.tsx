@@ -153,83 +153,89 @@ const DraggableNode: React.FC<DraggableNodeProps> = ({
   };
 
   return (
-    <GestureDetector gesture={composedGestures}>
-      <Animated.View style={[animatedStyle, { position: 'absolute' }]}>
-        <View style={getNodeStyle()} className="shadow-lg">
-          <View className="flex-1 p-2 justify-center items-center">
-            {/* Header with icon and editing indicator */}
-            <View className="flex-row items-center justify-center w-full mb-1">
-              <Ionicons 
-                name={getNodeIcon() as any} 
-                size={node.type === 'task' ? 12 : 16} 
-                color={getTextColor()} 
-              />
-              {isBeingEdited && (
+    <Animated.View style={[animatedStyle, { position: 'absolute' }]}>
+      {/* Delete button OUTSIDE the gesture detector to prevent conflicts */}
+      {isSelected && onDelete && node.type !== 'course' && (
+        <Pressable
+          onPress={() => {
+            console.log('Delete button pressed for:', node.title);
+            onDelete(node);
+          }}
+          className="absolute -top-2 -left-2 bg-red-500 w-6 h-6 rounded-full items-center justify-center"
+          style={{ zIndex: 1001 }}
+          hitSlop={6} // Make it easier to tap
+        >
+          <Ionicons name="close" size={12} color="white" />
+        </Pressable>
+      )}
+
+      <GestureDetector gesture={composedGestures}>
+        <Animated.View>
+          <View style={getNodeStyle()} className="shadow-lg">
+            <View className="flex-1 p-2 justify-center items-center">
+              {/* Header with icon and editing indicator */}
+              <View className="flex-row items-center justify-center w-full mb-1">
                 <Ionicons 
-                  name="create-outline" 
-                  size={12} 
+                  name={getNodeIcon() as any} 
+                  size={node.type === 'task' ? 12 : 16} 
                   color={getTextColor()} 
-                  style={{ marginLeft: 4 }}
                 />
-              )}
-            </View>
+                {isBeingEdited && (
+                  <Ionicons 
+                    name="create-outline" 
+                    size={12} 
+                    color={getTextColor()} 
+                    style={{ marginLeft: 4 }}
+                  />
+                )}
+              </View>
 
-            {/* Title */}
-            <Text 
-              style={{ 
-                color: getTextColor(),
-                fontSize: getFontSize(),
-                fontWeight: '600',
-                textAlign: 'center',
-              }}
-              numberOfLines={node.type === 'task' ? 1 : 2}
-            >
-              {node.title}
-            </Text>
-
-            {/* Type indicator */}
-            {node.type !== 'task' && (
+              {/* Title */}
               <Text 
                 style={{ 
                   color: getTextColor(),
-                  fontSize: 8,
-                  opacity: 0.8,
-                  textTransform: 'uppercase',
-                  marginTop: 2,
+                  fontSize: getFontSize(),
+                  fontWeight: '600',
+                  textAlign: 'center',
                 }}
+                numberOfLines={node.type === 'task' ? 1 : 2}
               >
-                {node.type}
+                {node.title}
               </Text>
-            )}
 
-            {/* Long press hint for non-task nodes */}
-            {node.type !== 'task' && !isBeingEdited && (
-              <View className="absolute bottom-1 right-1">
-                <Ionicons name="add-circle-outline" size={8} color={getTextColor()} />
-              </View>
-            )}
+              {/* Type indicator */}
+              {node.type !== 'task' && (
+                <Text 
+                  style={{ 
+                    color: getTextColor(),
+                    fontSize: 8,
+                    opacity: 0.8,
+                    textTransform: 'uppercase',
+                    marginTop: 2,
+                  }}
+                >
+                  {node.type}
+                </Text>
+              )}
 
-            {/* Editing indicator */}
-            {isBeingEdited && (
-              <View className="absolute -top-2 -right-2 bg-blue-500 w-6 h-6 rounded-full items-center justify-center">
-                <Ionicons name="create" size={12} color="white" />
-              </View>
-            )}
+              {/* Long press hint for non-task nodes */}
+              {node.type !== 'task' && !isBeingEdited && !isSelected && (
+                <View className="absolute bottom-1 right-1">
+                  <Ionicons name="add-circle-outline" size={8} color={getTextColor()} />
+                </View>
+              )}
 
-            {/* Delete button when selected */}
-            {isSelected && onDelete && node.type !== 'course' && (
-              <Pressable
-                onPress={() => onDelete(node)}
-                className="absolute -top-2 -left-2 bg-red-500 w-6 h-6 rounded-full items-center justify-center"
-                style={{ zIndex: 1000 }}
-              >
-                <Ionicons name="close" size={12} color="white" />
-              </Pressable>
-            )}
+              {/* Editing indicator */}
+              {isBeingEdited && (
+                <View className="absolute -top-2 -right-2 bg-blue-500 w-6 h-6 rounded-full items-center justify-center">
+                  <Ionicons name="create" size={12} color="white" />
+                </View>
+              )}
+            </View>
           </View>
-        </View>
-      </Animated.View>
-    </GestureDetector>
+        </Animated.View>
+      </GestureDetector>
+    </Animated.View>
   );
 };
 
