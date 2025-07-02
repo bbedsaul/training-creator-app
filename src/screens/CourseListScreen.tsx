@@ -26,7 +26,7 @@ export default function CourseListScreen() {
         difficulty: 'Beginner',
         estimatedDuration: '6 weeks',
         modules: []
-      }, { x: 200, y: 150 });
+      });
       
       addCourse({
         title: 'Advanced JavaScript Patterns',
@@ -35,7 +35,7 @@ export default function CourseListScreen() {
         difficulty: 'Advanced',
         estimatedDuration: '8 weeks',
         modules: []
-      }, { x: 200, y: 150 });
+      });
 
       addCourse({
         title: 'UI/UX Design Principles',
@@ -44,7 +44,7 @@ export default function CourseListScreen() {
         difficulty: 'Intermediate',
         estimatedDuration: '4 weeks',
         modules: []
-      }, { x: 200, y: 150 });
+      });
 
       // Add sample content to the first course after a delay
       setTimeout(() => {
@@ -52,18 +52,18 @@ export default function CourseListScreen() {
         if (currentCourses.length > 0) {
           const firstCourse = currentCourses[0];
           
-          // Add modules with explicit positions
+          // Add modules with auto-positioning
           addModule(firstCourse.id, {
             title: 'Getting Started',
             description: 'Setup and basic concepts',
             stickies: []
-          }, { x: 450, y: 100 });
+          });
 
           addModule(firstCourse.id, {
             title: 'Components & Navigation',
             description: 'Building UI components',
             stickies: []
-          }, { x: 350, y: 280 });
+          });
 
           // Add stickies after another delay
           setTimeout(() => {
@@ -77,13 +77,13 @@ export default function CourseListScreen() {
                 title: 'Environment Setup',
                 description: 'Install development tools',
                 tasks: []
-              }, { x: 650, y: 50 });
+              });
 
               addSticky(firstCourse.id, firstModule.id, {
                 title: 'Hello World App',
                 description: 'Create your first app',
                 tasks: []
-              }, { x: 600, y: 200 });
+              });
             }
           }, 200);
         }

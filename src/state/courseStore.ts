@@ -34,9 +34,14 @@ const getAutoPosition = (parentPosition?: Position, childIndex = 0, nodeType: 'c
     };
   }
 
-  // Child nodes positioned around parent
-  const radius = nodeType === 'module' ? 180 : nodeType === 'sticky' ? 140 : 100;
-  const angle = (childIndex * (2 * Math.PI)) / Math.max(1, 8); // Max 8 children in circle
+  // Child nodes positioned in a predictable pattern around parent
+  const baseDistance = nodeType === 'module' ? 220 : nodeType === 'sticky' ? 180 : 140;
+  
+  // Create a spiral pattern instead of pure circle to avoid overlaps
+  const spiral = Math.floor(childIndex / 8);
+  const angleIndex = childIndex % 8;
+  const radius = baseDistance + (spiral * 50);
+  const angle = (angleIndex * (2 * Math.PI)) / 8;
   
   return {
     x: parentPosition.x + radius * Math.cos(angle),
@@ -584,8 +589,22 @@ export const useCourseStore = create<CourseStore>()(
         
         // Ensure course has position and size
         if (!course.position || !course.size) {
-          console.log('Course missing position/size:', course.position, course.size);
-          return [];
+          console.log('Course missing position/size - fixing...');
+          // Fix missing course position/size
+          const fixedCourse = {
+            ...course,
+            position: course.position || { x: 200, y: 150 },
+            size: course.size || DEFAULT_SIZES.course,
+            color: course.color || NODE_COLORS.course,
+          };
+          // Update the course in the store
+          set(state => ({
+            courses: state.courses.map(c => c.id === courseId ? fixedCourse : c)
+          }));
+          // Use the fixed values
+          course.position = fixedCourse.position;
+          course.size = fixedCourse.size;
+          course.color = fixedCourse.color;
         }
         
         nodes.push({
@@ -598,12 +617,8 @@ export const useCourseStore = create<CourseStore>()(
           isCollapsed: course.isCollapsed || false,
         });
         
-        console.log('Course modules:', course.modules.length);
-        
         if (!course.isCollapsed) {
           course.modules.forEach((module, moduleIndex) => {
-            console.log(`Module ${moduleIndex}:`, module.title, 'Position:', module.position, 'Size:', module.size);
-            
             // Ensure module has position and size
             if (!module.position || !module.size) {
               console.log('Module missing position/size, skipping:', module.title);
@@ -621,12 +636,8 @@ export const useCourseStore = create<CourseStore>()(
               isCollapsed: module.isCollapsed || false,
             });
             
-            console.log('Module stickies:', module.stickies.length);
-            
             if (!module.isCollapsed) {
               module.stickies.forEach((sticky, stickyIndex) => {
-                console.log(`Sticky ${stickyIndex}:`, sticky.title, 'Position:', sticky.position, 'Size:', sticky.size);
-                
                 // Ensure sticky has position and size
                 if (!sticky.position || !sticky.size) {
                   console.log('Sticky missing position/size, skipping:', sticky.title);
@@ -646,8 +657,6 @@ export const useCourseStore = create<CourseStore>()(
                 
                 if (!sticky.isCollapsed) {
                   sticky.tasks.forEach((task, taskIndex) => {
-                    console.log(`Task ${taskIndex}:`, task.title, 'Position:', task.position, 'Size:', task.size);
-                    
                     // Ensure task has position and size
                     if (!task.position || !task.size) {
                       console.log('Task missing position/size, skipping:', task.title);
@@ -671,7 +680,7 @@ export const useCourseStore = create<CourseStore>()(
           });
         }
         
-        console.log('Total nodes found:', nodes.length);
+        console.log(`Found ${nodes.length} nodes for course: ${course.title}`);
         return nodes;
       },
 

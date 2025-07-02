@@ -60,16 +60,11 @@ export default function MindMapScreen({ route }: { route: { params: { course: Co
 
   const handleNodeLongPress = (node: MindMapNode) => {
     console.log('Long press detected on:', node.type, node.title);
-    
-    // Calculate position for new object (offset from the pressed node)
-    const newPosition = {
-      x: node.position.x + node.size.width + 30,
-      y: node.position.y + (Math.random() - 0.5) * 100 // Add some vertical randomness
-    };
 
     let newObjectType: 'module' | 'sticky' | 'task';
 
     // Create the actual object immediately based on parent type
+    // Don't specify position - let the store's auto-positioning handle it
     switch (node.type) {
       case 'course':
         newObjectType = 'module';
@@ -78,7 +73,7 @@ export default function MindMapScreen({ route }: { route: { params: { course: Co
           title: 'New Module',
           description: '',
           stickies: []
-        }, newPosition);
+        });
         break;
 
       case 'module':
@@ -88,7 +83,7 @@ export default function MindMapScreen({ route }: { route: { params: { course: Co
           title: 'New Sticky',
           description: '',
           tasks: []
-        }, newPosition);
+        });
         break;
 
       case 'sticky':
@@ -103,7 +98,7 @@ export default function MindMapScreen({ route }: { route: { params: { course: Co
             title: 'New Task',
             description: '',
             isCompleted: false
-          }, newPosition);
+          });
         }
         break;
 
